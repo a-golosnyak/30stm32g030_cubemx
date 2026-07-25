@@ -60,6 +60,8 @@ extern UART_HandleTypeDef huart1;
 extern uint8_t sensorCount;
 extern int16_t testTemp1;
 extern int16_t testTemp2;
+extern ADC_HandleTypeDef hadc1;
+extern I2C_HandleTypeDef hi2c1;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

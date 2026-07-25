@@ -22,7 +22,6 @@
 #include "led_module.h"
 #include "graphics5.h"
 #include "main.h"
-#include "i2c.h"
 #include "power_module.h"
 
 /* Private typedef -----------------------------------------------------------*/
@@ -123,7 +122,7 @@ void OLED_Processing(void)
 
 		sprintf(RenderBuffer, "Vref=%d.%03d  ", PWRMNG.Vref/1000, PWRMNG.Vref%1000);
 		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
-		sprintf(RenderBuffer, "Vdda=%d  ", PWRMNG.Vdda);
+		sprintf(RenderBuffer, "Vdda=%d.%03d  ", PWRMNG.Vdda/1000, PWRMNG.Vdda%1000);
 		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
 
 		sprintf(RenderBuffer, "Vtemp=%d.%d\x7F  ", PWRMNG.Temp/10, PWRMNG.Temp%10);
@@ -132,9 +131,9 @@ void OLED_Processing(void)
 		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
 
 		int16_t t_celsius = PWRMNG.Vntc / 100;       // Целая часть (например, 25)
-		int16_t t_fraction = abs(PWRMNG.Vntc % 100); // Сотые доли (например, 50)
+		int16_t t_fraction = abs(PWRMNG.Vntc % 10); // Сотые доли (например, 50)
 //
-		sprintf(RenderBuffer, "Temp: %d.%02d  ", t_celsius, t_fraction);
+		sprintf(RenderBuffer, "Temp: %d.%01d\x7F  ", t_celsius, t_fraction);
 ////		sprintf(RenderBuffer, "Vntc=%d  ", PWRMNG.Vntc);
 		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
 		sprintf(RenderBuffer, "%d  ", PWRMNG.AdcCod[VNTC]/16);
