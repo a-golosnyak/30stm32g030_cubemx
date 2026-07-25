@@ -1,0 +1,50 @@
+# STM32CubeIDE / CubeMX - build outputs and IDE metadata
+
+# Build output folders
+Debug/
+Release/
+
+# Eclipse / CubeIDE project files (IDE-specific, can be regenerated)
+.project
+.cproject
+.settings/
+.metadata/
+
+# CubeMX user/temp files (keep .ioc)
+*.ioc.user
+*.mxproject
+
+# Generated lists / makefiles / dependency artifacts
+*.list
+*.mk
+*.d
+*.su
+*.cyclo
+
+# Compiled and linked artifacts
+*.elf
+*.axf
+*.bin
+*.hex
+*.map
+*.o
+*.obj
+*.dmp
+*.lst
+
+# Temporary, backup, and swap files
+*~
+*.swp
+*.tmp
+*.bak
+
+# IDE/editor folders
+.vscode/
+.idea/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log

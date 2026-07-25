@@ -1,0 +1,2 @@
+Repository - 			20260724_30stm32g030_cubemx
+Project directory name - 	20260706 STM32G030 CubeIDE
