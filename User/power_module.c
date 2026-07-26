@@ -15,7 +15,6 @@
 #include "power_module.h"
 #include "led_module.h"
 #include "string.h"
-#include "adc.h"
 #include "ntc_termistor.h"
 /* USER CODE END Includes */
 

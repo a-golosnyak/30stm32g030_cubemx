@@ -15,7 +15,7 @@
 #include <string.h>
 #include "led_module.h"
 #include "main.h"
-#include "usart.h"
+//#include "usart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -446,8 +446,8 @@ void DS18B20_Processing1()
 	switch(DS18B20.MainStateMachine)
 	{
 		case 0:
-			MX_USART1_UART_Init();
-			DS18B20_Init(&huart1);
+//			MX_USART1_UART_Init();
+//			DS18B20_Init(&huart1);
 			DS18B20.Counter += 200;
 			DS18B20.MainStateMachine++;
 		break;
