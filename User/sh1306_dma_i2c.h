@@ -27,19 +27,12 @@ typedef struct
 } Flag_t;
 
 /* Private define ------------------------------------------------------------*/
-#define I2C_BUS I2C1
-
-#define I2C_OFFSET_TIMINGR_SCLL		0
-#define I2C_OFFSET_TIMINGR_SCLH		8
-#define I2C_OFFSET_TIMINGR_SDADEL	16
-#define I2C_OFFSET_TIMINGR_SCLDEL	20
-#define I2C_OFFSET_TIMINGR_PRESC	28
-#define I2C_OFFSET_CR2_NBYTES		16
-//---------------------------------------------
 
 #define FLAG_TIMEOUT         ((uint32_t)0x1000)
 #define SH1306_ADDR           0x78   			// sh1306 address
-
+#define SH1306_COMMAND        0x80
+#define SH1306_COMMANDS_ARRAY 0x00
+#define SH1306_DATA           0x40
 
 #define SH1106_SETCONTRAST    		0x81
 #define SH1106_DISPLAYALLON_RESUME 	0xA4
@@ -85,16 +78,15 @@ typedef struct
 {
 	u32	Counter;
 	u8	MainStateMachine;
+	u32	sendCommandCounter;
+	u8	sendCommandStateMachine;
+	u32	sendDataCounter;
+	u8	sendDataStateMachine;
 	u8	Buffer[128 * 64 / 8];
 	u8	glcd_dirty_pages;
 	u32 Timeout;
 	Flag_t flag;
 }OLED_t;
-
-extern char RenderBuffer[20];
-
-extern uint8_t sensorCount;
-extern int16_t testTemp;
 
 /* Private variables ---------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/

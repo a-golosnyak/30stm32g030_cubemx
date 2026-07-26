@@ -15,7 +15,6 @@
 #include <string.h>
 #include "led_module.h"
 #include "main.h"
-//#include "usart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,8 +57,8 @@ DS18B20_t	DS18B20;
 //static UART_HandleTypeDef *ow_huart = NULL;
 
 /* DMA completion flags, set from HAL_UART_RxCpltCallback / TxCpltCallback */
-static volatile uint8_t owRxDone = 0;
-static volatile uint8_t owTxDone = 0;
+volatile uint8_t owRxDone = 0;
+volatile uint8_t owTxDone = 0;
 
 /* USER CODE END PV */
 
@@ -82,18 +81,13 @@ static volatile uint8_t owTxDone = 0;
   */
 static void OW_SetBaud(uint32_t baud)
 {
-    uint32_t pclk = HAL_RCC_GetPCLK1Freq();
-
-    huart1.Instance->CR1 &= ~USART_CR1_UE;               /* disable USART */
-    huart1.Instance->BRR = (pclk + (baud / 2U)) / baud;  /* oversampling 16 */
-    huart1.Instance->CR1 |= USART_CR1_UE;                /* re-enable      */
-
-	/* Дождаться, пока TX и RX реально включатся, иначе первый байт
-	после переключения baud может быть потерян/испорчен. */
-	while (!(huart1.Instance->ISR & USART_ISR_TEACK)) { }
-	while (!(huart1.Instance->ISR & USART_ISR_REACK)) { }
-
-	huart1.Init.BaudRate = baud;
+	uint32_t pclk = LL_RCC_GetUSARTClockFreq(LL_RCC_USART1_CLKSOURCE);
+	uint32_t prescaler = LL_USART_GetPrescaler(USART1);
+	LL_USART_Disable(USART1);
+	LL_USART_SetBaudRate(USART1, pclk, prescaler, LL_USART_OVERSAMPLING_16, baud);
+	LL_USART_Enable(USART1);
+	while (!LL_USART_IsActiveFlag_TEACK(USART1)) { }
+	while (!LL_USART_IsActiveFlag_REACK(USART1)) { }
 }
 
 /**
@@ -114,7 +108,10 @@ static HAL_StatusTypeDef OW_WaitRx(uint32_t timeoutMs)
     {
         if ((HAL_GetTick() - start) > timeoutMs)
         {
-            HAL_UART_DMAStop(&huart1);
+        	LL_USART_DisableDMAReq_RX(USART1);
+			LL_USART_DisableDMAReq_TX(USART1);
+			LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_3);
+			LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_4);
             owRxDone = 0;
             owTxDone = 0;
             return HAL_TIMEOUT;
@@ -134,15 +131,28 @@ static HAL_StatusTypeDef OW_WaitRx(uint32_t timeoutMs)
   */
 static HAL_StatusTypeDef OW_Transceive(const uint8_t *tx, uint8_t *rx, uint16_t len)
 {
-    if (HAL_UART_Receive_DMA(&huart1, rx, len) != HAL_OK)
-    {
-        return HAL_ERROR;
-    }
-    if (HAL_UART_Transmit_DMA(&huart1, (uint8_t *)tx, len) != HAL_OK)
-    {
-        HAL_UART_DMAStop(&huart1);
-        return HAL_ERROR;
-    }
+	LL_DMA_ClearFlag_TC3(DMA1); // Очищаем флаг окончания предыдущего приема (Канал 3)
+	LL_DMA_ClearFlag_TE3(DMA1); // Очищаем флаг ошибки приема
+	LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_3);
+
+	LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_3, (uint32_t)rx);
+	LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_3, len);
+
+	// Включаем канал приема первого, чтобы он был готов слушать шину до начала передачи
+	LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_3);
+	LL_USART_EnableDMAReq_RX(USART1); // Разрешаем USART1 просить DMA забирать данные
+
+	// --- Шаг 2. Конфигурация DMA для ПЕРЕДАЧИ (TX) ---
+	LL_DMA_ClearFlag_TC2(DMA1); // Очищаем флаг окончания предыдущей передачи (Канал 2)
+	LL_DMA_ClearFlag_TE2(DMA1); // Очищаем флаг ошибки передачи
+	LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_4);
+
+	LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_4, (uint32_t)tx);
+	LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_4, len);
+
+	// Включаем канал передачи и пинаем USART1 на отправку запросов
+	LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_4);
+	LL_USART_EnableDMAReq_TX(USART1);
     return OW_WaitRx(OW_DMA_TIMEOUT);
 }
 
@@ -152,7 +162,7 @@ static HAL_StatusTypeDef OW_Transceive(const uint8_t *tx, uint8_t *rx, uint16_t 
   */
 static uint8_t OW_Reset(void)
 {
-//  uint8_t tx = 0xF0, rx = 0;	// tx = 0xF0 - , 0xA0 +
+//  uint8_t tx = 0xF0, rx = 0;		// tx = 0xF0 - , 0xA0 +
     uint8_t tx = 0xA0, rx = 0;		// Why A0 works?
 
     OW_SetBaud(OW_BAUD_RESET);
@@ -363,7 +373,6 @@ static void DS18B20_ReadOne(uint8_t index)
 {
     uint8_t scratch[9];
 
-//    LED_On(LED1); delayUs(30); LED_Off(LED1);
     if (!OW_Reset())
     {
     	DS18B20.sensors[index].valid = 0;
@@ -491,7 +500,6 @@ void DS18B20_Processing1()
 				for (uint8_t i = 0; i < 9; i++)
 				{
 					scratch[i] = OW_ByteIO(0xFF);
-					LED_On(LED1); delayUs(3); LED_Off(LED1);
 				}
 				if (OW_CRC8(scratch, 8) != scratch[8])
 				{
@@ -611,8 +619,7 @@ uint8_t DS18B20_QuickTestSkipROM(int16_t *outRaw)
 {
     uint8_t scratch[9];
 
-    if (!OW_Reset())
-    {
+    if (!OW_Reset()) {
         return 0; /* no presence at all */
     }
 
@@ -620,20 +627,17 @@ uint8_t DS18B20_QuickTestSkipROM(int16_t *outRaw)
     OW_ByteIO(DS18B20_CMD_CONVERT_T);
     HAL_Delay(750); /* diagnostic only — blocking is fine here */
 
-    if (!OW_Reset())
-    {
+    if (!OW_Reset()) {
         return 0; /* lost presence between convert and read */
     }
     OW_ByteIO(DS18B20_CMD_SKIP_ROM);
     OW_ByteIO(DS18B20_CMD_READ_SCRATCH);
 
-    for (uint8_t i = 0; i < 9; i++)
-    {
+    for (uint8_t i = 0; i < 9; i++) {
         scratch[i] = OW_ByteIO(0xFF);
-        LED_On(LED1); delayUs(30); LED_Off(LED1);
     }
-    if (OW_CRC8(scratch, 8) != scratch[8])
-    {
+
+    if (OW_CRC8(scratch, 8) != scratch[8]) {
         return 0; /* CRC mismatch */
     }
 
@@ -641,30 +645,5 @@ uint8_t DS18B20_QuickTestSkipROM(int16_t *outRaw)
     return 1;
 }
 
-/**
-  * @brief  HAL DMA RX complete callback. Weak override.
-  * @note   If other modules also use USART DMA elsewhere in the project,
-  *         switch to HAL_UART_RegisterCallback() instead of this weak
-  *         override to avoid a symbol clash.
-  */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == USART1)
-    {
-        owRxDone = 1;
-    }
-}
-
-/**
-  * @brief  HAL DMA TX complete callback. Weak override.
-  * @note   Same clash caveat as HAL_UART_RxCpltCallback above.
-  */
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == USART1)
-    {
-        owTxDone = 1;
-    }
-}
 
 /* USER CODE END EF */

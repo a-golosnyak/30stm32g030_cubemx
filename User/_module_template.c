@@ -32,12 +32,13 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-
+MODULE_t MODULE;
 /* USER CODE END PV */
 
 /* Private function prototypes ------------------------------------------------*/
 /* USER CODE BEGIN PFP */
-void I2C_LowLevel_Init(void);
+void MODULE_Init(void);
+void MODULE_Processing(void);
 /* USER CODE END PFP */
 
 /* Private user code -----------------------------------------------------------*/
@@ -47,5 +48,24 @@ void I2C_LowLevel_Init(void);
 
 /* Exported functions ----------------------------------------------------------*/
 /* USER CODE BEGIN EF */
+
+void MODULE_Processing(void)
+{
+	switch(MODULE.mainStateMachine) {
+	case 0:
+		MODULE.mainStateMachine++;
+		break;
+
+	case 1:
+		break;
+
+	case 2:
+		break;
+
+	default:
+		MODULE.mainStateMachine = 0;
+		break;
+	}
+}
 
 /* USER CODE END EF */

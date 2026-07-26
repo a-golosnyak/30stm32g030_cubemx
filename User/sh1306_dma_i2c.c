@@ -31,10 +31,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 OLED_t OLED;
-char RenderBuffer[20];
+char RenderBuffer[25];
 
 /* Exported variables --------------------------------------------------------*/
-extern u32 SystemCounter;
 /* Private function prototypes -----------------------------------------------*/
 void I2C_LowLevel_Init(void);
 void I2C_Start (void);
@@ -43,7 +42,9 @@ u8 I2C_Write_Transaction (u8 Adress, u8 Register, u8 *Data, u8 Size);
 u8 I2C_Read_Transaction (u8 Adress, u8 Register, u8 *Data, u8 Size);
 
 u8 OLED_WriteCommand(uint8_t data);
+u8 OLED_WriteCommandAsync(uint8_t* data, uint16_t Size);
 u8 OLED_WriteData(uint8_t* data, uint16_t Size);
+u8 OLED_WriteDataAsync(uint8_t command, uint8_t* data, uint16_t Size);
 u8 OLED_BurstWrite(uint8_t* pBuffer, uint8_t NumByteToWrite);
 u8 I2C_TIMEOUT_UserCallback(u8 State);
 
@@ -56,35 +57,69 @@ u8 I2C_TIMEOUT_UserCallback(u8 State);
  *********************************************************************************/
 void OLED_Init(void)
 {
+	uint8_t oledInitCommands[] = {
+	    0xAE, // Display OFF
+	    0x20, // Set Memory Addressing Mode
+	    0x10, // Page Addressing Mode (RESET)
+	    0xB0, // Set Page Start Address for Page Addressing Mode (0-7)
+	    0xC8, // Set COM Output Scan Direction
+	    0x00, // Set Low Column Address
+	    0x10, // Set High Column Address
+	    0x40, // Set Start Line Address
+	    0x81, // Set Contrast Control Register
+	    0xCF, // Contrast Value (MAX)
+	    0xA1, // Set Segment Re-map 0 to 127
+	    0xA6, // Set Normal Display
+	    0xA8, // Set Multiplex Ratio (1 to 64)
+	    0x3F, //
+	    0xA4, // Output follows RAM content
+	    0xD3, // Set Display Offset
+	    0x00, // No Offset
+	    0xD5, // Set Display Clock Divide Ratio/Oscillator Frequency
+	    0x80, // Set Divide Ratio
+	    0xD9, // Set Pre-charge Period
+	    0x22, //
+	    0xDA, // Set COM Pins Hardware Configuration
+	    0x12, //
+	    0xDB, // Set VCOMH
+	    0x20, // 0.77xVcc
+	    0x8D, // Set DC-DC (Charge Pump) Enable
+	    0x14, //
+	    0xAF  // Turn ON Panel
+	};
+
+	while(OLED_WriteDataAsync(SH1306_COMMANDS_ARRAY, oledInitCommands, sizeof(oledInitCommands)) == 1) {}
+
 	/* Init LCD */
-	OLED_WriteCommand(0xAE); //display off
-	OLED_WriteCommand(0x20); //Set Memory Addressing Mode
-	OLED_WriteCommand(0x10); //00,Horizontal Addressing Mode;01,Vertical Addressing Mode;10,Page Addressing Mode (RESET);11,Invalid
-	OLED_WriteCommand(0xB0); //Set Page Start Address for Page Addressing Mode,0-7
-	OLED_WriteCommand(0xC8); //Set COM Output Scan Direction
-	OLED_WriteCommand(0x00); //---set low column address
-	OLED_WriteCommand(0x10); //---set high column address
-	OLED_WriteCommand(0x40); //--set start line address
-	OLED_WriteCommand(0x81); //--set contrast control register
-	OLED_WriteCommand(0xff);
-	OLED_WriteCommand(0xA1); //--set segment re-map 0 to 127
-	OLED_WriteCommand(0xA6); //--set normal display
-	OLED_WriteCommand(0xA8); //--set multiplex ratio(1 to 64)
-	OLED_WriteCommand(0x3F); //
-	OLED_WriteCommand(0xA4); //0xa4,Output follows RAM content;0xa5,Output ignores RAM content
-	OLED_WriteCommand(0xD3); //-set display offset
-	OLED_WriteCommand(0x00); //-not offset
-	OLED_WriteCommand(0xD5); //--set display clock divide ratio/oscillator frequency
-	OLED_WriteCommand(0xF0); //--set divide ratio
-	OLED_WriteCommand(0xD9); //--set pre-charge period
-	OLED_WriteCommand(0x22); //
-	OLED_WriteCommand(0xDA); //--set com pins hardware configuration
-	OLED_WriteCommand(0x12);
-	OLED_WriteCommand(0xDB); //--set vcomh
-	OLED_WriteCommand(0x20); //0x20,0.77xVcc
-	OLED_WriteCommand(0x8D); //--set DC-DC enable
-	OLED_WriteCommand(0x14); //
-	OLED_WriteCommand(0xAF); //--turn on SSD1306 panel
+//	OLED_WriteCommand(0xAE); //display off
+//	OLED_WriteCommand(0x20); //Set Memory Addressing Mode
+//	OLED_WriteCommand(0x10); //00,Horizontal Addressing Mode;01,Vertical Addressing Mode;10,Page Addressing Mode (RESET);11,Invalid
+//	OLED_WriteCommand(0xB0); //Set Page Start Address for Page Addressing Mode,0-7
+//	OLED_WriteCommand(0xC8); //Set COM Output Scan Direction
+//	OLED_WriteCommand(0x00); //---set low column address
+//	OLED_WriteCommand(0x10); //---set high column address
+//	OLED_WriteCommand(0x40); //--set start line address
+//	OLED_WriteCommand(0x81); //--set contrast control register
+//	OLED_WriteCommand(0xff);
+//	OLED_WriteCommand(0xA1); //--set segment re-map 0 to 127
+//	OLED_WriteCommand(0xA6); //--set normal display
+//	OLED_WriteCommand(0xA8); //--set multiplex ratio(1 to 64)
+//	OLED_WriteCommand(0x3F); //
+//	OLED_WriteCommand(0xA4); //0xa4,Output follows RAM content;0xa5,Output ignores RAM content
+//	OLED_WriteCommand(0xD3); //-set display offset
+//	OLED_WriteCommand(0x00); //-not offset
+//	OLED_WriteCommand(0xD5); //--set display clock divide ratio/oscillator frequency
+//	OLED_WriteCommand(0xF0); //--set divide ratio
+//	OLED_WriteCommand(0xD9); //--set pre-charge period
+//	OLED_WriteCommand(0x22); //
+//	OLED_WriteCommand(0xDA); //--set com pins hardware configuration
+//	OLED_WriteCommand(0x12);
+//	OLED_WriteCommand(0xDB); //--set vcomh
+//	OLED_WriteCommand(0x20); //0x20,0.77xVcc
+//	OLED_WriteCommand(0x8D); //--set DC-DC enable
+//	OLED_WriteCommand(0x14); //
+//	OLED_WriteCommand(0xAF); //--turn on SSD1306 panel
+
 
 	OLED_Clear(0);
 
@@ -93,9 +128,9 @@ void OLED_Init(void)
 }
 
 /*********************************************************************************
- * @brief  ����� ������														//
- * @param  None																//
- * @retval None																//
+ * @brief  ����� ������															//
+ * @param  None																	//
+ * @retval None																	//
  *********************************************************************************/
 void OLED_Processing(void)
 {
@@ -106,47 +141,38 @@ void OLED_Processing(void)
 //		sprintf(RenderBuffer, "n=%d  ", (u8)sensorCount);
 //		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
 
-//		char sign = (testTemp1 < 0) ? '-' : ' ';
-//		if (testTemp1 < 0) testTemp1 = -testTemp1; 									// Работаем с модулем числа
-//		int16_t celsius = testTemp1 / 16;
-//		int16_t fraction = ((testTemp1 % 16) * 10) / 16; 							// Переводит "шестнадцатые" строго в десятые
-//		sprintf(RenderBuffer, "t1=%c%d.%d\x7F ", sign, celsius, fraction); 	// \x7F - degree sign °
-//		LCD_PutText(RenderBuffer, 30, y, Tahoma8, 1, 1);
-//
+		char sign = (testTemp1 < 0) ? '-' : ' ';
+		if (testTemp1 < 0) testTemp1 = -testTemp1; 									// Работаем с модулем числа
+		int16_t celsius = testTemp1 / 16;
+		int16_t fraction = ((testTemp1 % 16) * 10) / 16; 							// Переводит "шестнадцатые" строго в десятые
+		sprintf(RenderBuffer, "Tds1=%c%d.%d\x7F ", sign, celsius, fraction); 		// \x7F - degree sign °
+		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
+
+		int16_t t_celsius = PWRMNG.Vntc / 100;       								// Целая часть (например, 25)
+		int16_t t_fraction = abs(PWRMNG.Vntc % 10); 								// Сотые доли (например, 50)
+
+		sprintf(RenderBuffer, "Tntc= %d.%01d\x7F  ", t_celsius, t_fraction);
+		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
+
 //		sign = (testTemp2 < 0) ? '-' : ' ';
 //		if (testTemp2 < 0) testTemp2 = -testTemp2; 									// Работаем с модулем числа
 //		celsius = testTemp2 / 16;
 //		fraction = ((testTemp2 % 16) * 10) / 16; 									// Переводит "шестнадцатые" строго в десятые
-//		sprintf(RenderBuffer, "t2=%c%d.%d\x7F ", sign, celsius, fraction); 	// \x7F - degree sign °
-//		LCD_PutText(RenderBuffer, 82, y, Tahoma8, 1, 1);
+//		sprintf(RenderBuffer, "Tds2=%c%d.%d\x7F ", sign, celsius, fraction); 		// \x7F - degree sign °
+//		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
+//
+//		sprintf(RenderBuffer, "Tmcu=%d.%d\x7F  ", PWRMNG.Temp/10, PWRMNG.Temp%10);
+//		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
 
 		sprintf(RenderBuffer, "Vref=%d.%03d  ", PWRMNG.Vref/1000, PWRMNG.Vref%1000);
 		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
 		sprintf(RenderBuffer, "Vdda=%d.%03d  ", PWRMNG.Vdda/1000, PWRMNG.Vdda%1000);
 		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
 
-		sprintf(RenderBuffer, "Vtemp=%d.%d\x7F  ", PWRMNG.Temp/10, PWRMNG.Temp%10);
-		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
-		sprintf(RenderBuffer, "%d   ", PWRMNG.AdcCod[TEMP]/16);
-		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
-
-		int16_t t_celsius = PWRMNG.Vntc / 100;       // Целая часть (например, 25)
-		int16_t t_fraction = abs(PWRMNG.Vntc % 10); // Сотые доли (например, 50)
-//
-		sprintf(RenderBuffer, "Temp: %d.%01d\x7F  ", t_celsius, t_fraction);
-////		sprintf(RenderBuffer, "Vntc=%d  ", PWRMNG.Vntc);
-		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
-		sprintf(RenderBuffer, "%d  ", PWRMNG.AdcCod[VNTC]/16);
-		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
-//
 		sprintf(RenderBuffer, "Vbat=%d    ", PWRMNG.Vbat);
 		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
 //		sprintf(RenderBuffer, "%d    ", PWRMNG.AdcCod[VBAT]);
 //		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
-
-//		uint16_t vrefint_cal = *VREFINT_CAL_ADDR;
-//		sprintf(RenderBuffer, "Vcal=%d  ", vrefint_cal);
-//		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
 
 		OLED.flag.sendData = 1;
 	}
@@ -175,6 +201,7 @@ void OLED_Clear(u8 color)
 void OLED_RenderAll(void)
 {
 	static int x = 0, y = 0;
+	static uint8_t commands[5];
 
 	switch(OLED.MainStateMachine)
 	{
@@ -183,60 +210,57 @@ void OLED_RenderAll(void)
 				OLED.flag.sendData = 0;
 				x = 0;
 				y = 0;
-//				LED_On(LED1);
 				OLED.MainStateMachine++;
 			}
 		break;
 
 		case 1:
-			if(HAL_I2C_GetState(&hi2c1) == HAL_I2C_STATE_READY)
+			if(!LL_I2C_IsActiveFlag_BUSY(I2C1))
 			{
-				OLED_WriteCommand(SH1106_PAGEADDR | y);
-				OLED_WriteCommand(SH1106_SETLOWCOLUMN | (x));
-				OLED_WriteCommand(SH1106_SETHIGHCOLUMN);
-
+				commands[0] = SH1106_PAGEADDR | y;
+				commands[1] = SH1106_SETLOWCOLUMN | (x);
+				commands[2] = SH1106_SETHIGHCOLUMN;
 				OLED.MainStateMachine++;
 			}
 		break;
 
 		case 2:
-			if(HAL_I2C_GetState(&hi2c1) == HAL_I2C_STATE_READY)
-			{
-				OLED_WriteData(&OLED.Buffer[y*128], 128);
-				y++;
-				if(y<8) {
-					OLED.MainStateMachine = 1;
-				} else {
-					OLED.MainStateMachine++;
-				}
+			if(OLED_WriteDataAsync(SH1306_COMMANDS_ARRAY, commands, 3) == 0) {
+				OLED.MainStateMachine++;
 			}
 		break;
 
 		case 3:
-//			LED_Off(LED1);
+			if(!LL_I2C_IsActiveFlag_BUSY(I2C1))
+			{
+				OLED.MainStateMachine++;
+			}
+		break;
+
+		case 4:
+			if(OLED_WriteDataAsync(SH1306_DATA, &OLED.Buffer[y*128], 128) == 0) {
+				OLED.MainStateMachine++;
+			}
+		break;
+
+		case 5:
+			y++;
+			if(y<8) {
+				OLED.MainStateMachine = 1;
+			} else {
+				OLED.MainStateMachine++;
+			}
+		break;
+
+		case 6:
 			OLED.glcd_dirty_pages = 0;
 			OLED.MainStateMachine = 0;
 		break;
 
 		default:
 			OLED.MainStateMachine = 0;
-			break;
+		break;
 	}
-
-//	static int x = 0, y = 0;
-//
-//	for (y = 0; y < 8; y++)
-//	{
-//		if (!(OLED.glcd_dirty_pages & (1 << y)))
-//			continue;
-//
-//		OLED_WriteCommand(SH1106_PAGEADDR | y);
-//		OLED_WriteCommand(SH1106_SETLOWCOLUMN | (x));
-//		OLED_WriteCommand(SH1106_SETHIGHCOLUMN);
-//
-//		OLED_WriteData(&OLED.Buffer[y*128], 128);
-//	}
-//	OLED.glcd_dirty_pages = 0;
 }
 
 /*********************************************************************************
@@ -275,6 +299,68 @@ void OLED_inverse_screen(unsigned char inverse)
 		OLED_WriteCommand(SH1106_NORMALDISPLAY);
 }
 
+
+/*********************************************************************************
+ * @brief  Асинхронная отправка данных
+ * @param  None
+ * @retval None
+ *********************************************************************************/
+u8 OLED_WriteDataAsync(u8 command, uint8_t* data, uint16_t Size)
+{
+    uint8_t status = 0;
+
+    switch (OLED.sendDataStateMachine) {
+    case 0:
+        LL_I2C_ClearFlag_NACK(I2C1);
+        LL_DMA_ClearFlag_TC1(DMA1);
+        LL_DMA_ClearFlag_TE1(DMA1);
+        LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_1);
+        LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_1, (uint32_t)data);
+        LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_1, Size);
+        LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_1);
+
+        LL_I2C_HandleTransfer(I2C1, SH1306_ADDR, LL_I2C_ADDRSLAVE_7BIT,
+                             Size + 1, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE);
+
+        OLED.sendDataCounter = SystemCounter + 10;
+        OLED.sendDataStateMachine++;
+        break;
+
+    case 1:
+        if (LL_I2C_IsActiveFlag_TXE(I2C1) || OLED.sendDataCounter < SystemCounter) {
+            LL_I2C_TransmitData8(I2C1, command);
+            LL_I2C_EnableDMAReq_TX(I2C1);
+            OLED.sendDataCounter = SystemCounter + 10;
+            OLED.sendDataStateMachine++;
+        }
+        break;
+
+    case 2:
+        if (LL_I2C_IsActiveFlag_STOP(I2C1) || LL_I2C_IsActiveFlag_NACK(I2C1) || (OLED.sendDataCounter < SystemCounter))
+        {
+            status = LL_I2C_IsActiveFlag_NACK(I2C1);
+            LL_I2C_DisableDMAReq_TX(I2C1);
+            LL_I2C_ClearFlag_STOP(I2C1);
+            OLED.sendDataStateMachine++;
+        }
+        break;
+
+    case 3:
+        if (status == 0) {
+            OLED.sendDataStateMachine = 0;
+            return 0;
+        }
+        OLED.sendDataStateMachine = 0;
+        break;
+
+    default:
+        OLED.sendDataStateMachine = 0;
+        break;
+    }
+    return 1;
+}
+
+
 /*********************************************************************************
  * @brief  ������� 1 ���� �������.
  * @param  None
@@ -282,18 +368,36 @@ void OLED_inverse_screen(unsigned char inverse)
  *********************************************************************************/
 u8 OLED_WriteCommand(uint8_t data)
 {
-	do{
-		uint8_t tx_data[2] = {0x80, data};
-		HAL_I2C_Master_Transmit_DMA(&hi2c1, (uint16_t)SH1306_ADDR, (uint8_t *)tx_data, 2);
+	static uint8_t tx_data[2];
+	tx_data[0] = 0x80;
+	tx_data[1] = data; // Разыменовываем указатель
+	uint8_t status = 0;
 
-		while (HAL_I2C_GetState(&hi2c1) != HAL_I2C_STATE_READY)
-		{
-		}
-	}
-	while(HAL_I2C_GetError(&hi2c1) == HAL_I2C_ERROR_AF);
+	do {
+	    LL_I2C_ClearFlag_NACK(I2C1);
+	    LL_DMA_ClearFlag_TC1(DMA1);
+	    LL_DMA_ClearFlag_TE1(DMA1);
+
+	    LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_1);
+	    LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_1, (uint32_t)tx_data);
+	    LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_1, 2);
+	    LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_1);
+
+	    LL_I2C_HandleTransfer(I2C1, SH1306_ADDR, LL_I2C_ADDRSLAVE_7BIT, 2, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE);
+	    LL_I2C_EnableDMAReq_TX(I2C1);
+
+	    uint32_t start = HAL_GetTick();
+	    while(!LL_I2C_IsActiveFlag_STOP(I2C1) && !LL_I2C_IsActiveFlag_NACK(I2C1) && (HAL_GetTick() - start < 10U)) {}
+
+	    status = LL_I2C_IsActiveFlag_NACK(I2C1);
+	    LL_I2C_DisableDMAReq_TX(I2C1);
+	    LL_I2C_ClearFlag_STOP(I2C1);
+
+	} while(status == 1);
 
 	return 0;
 }
+
 /*********************************************************************************
  * @brief  ������� 1 ���� ������.
  * @param  None
@@ -301,27 +405,34 @@ u8 OLED_WriteCommand(uint8_t data)
  *********************************************************************************/
 u8 OLED_WriteData(uint8_t* data, uint16_t Size)
 {
-	do
-	{
-		static uint8_t tx_data[129];
+	static uint8_t tx_data[129];
+	tx_data[0] = 0x40;
+	memcpy(&tx_data[1], data, Size);
+	uint8_t status;
 
-		tx_data[0] = 0x40;
-		memcpy(&tx_data[1], data, 128);
+	do {
+	    LL_I2C_ClearFlag_NACK(I2C1);
 
-		if (HAL_I2C_Master_Transmit_DMA(&hi2c1, (uint16_t)SH1306_ADDR, tx_data, Size+1) != HAL_OK)
-		{
-			Error_Handler();
-		}
+	    LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_1);
+	    LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_1, (uint32_t)tx_data);
 
-		while (HAL_I2C_GetState(&hi2c1) != HAL_I2C_STATE_READY)
-		{
-		}
-	}
-	while (HAL_I2C_GetError(&hi2c1) == HAL_I2C_ERROR_AF);
+	    LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_1, Size + 1);
+	    LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_1);
+
+	    LL_I2C_HandleTransfer(I2C1, SH1306_ADDR, LL_I2C_ADDRSLAVE_7BIT, Size + 1, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE);
+	    LL_I2C_EnableDMAReq_TX(I2C1);
+
+	    uint32_t start = HAL_GetTick();
+	    while(!LL_I2C_IsActiveFlag_STOP(I2C1) && !LL_I2C_IsActiveFlag_NACK(I2C1) && (HAL_GetTick() - start < 10U)) {}
+
+	    status = LL_I2C_IsActiveFlag_NACK(I2C1);
+	    LL_I2C_DisableDMAReq_TX(I2C1);
+	    LL_I2C_ClearFlag_STOP(I2C1);
+
+	} while(status == 1);
 
 	return 0;
 }
-
 
 /*********************************************************************************
  * @brief

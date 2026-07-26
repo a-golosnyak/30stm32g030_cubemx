@@ -43,6 +43,9 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
 unsigned long SystemCounter;
+
+extern volatile uint8_t owRxDone;
+extern volatile uint8_t owTxDone;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -57,12 +60,6 @@ unsigned long SystemCounter;
 
 /* External variables --------------------------------------------------------*/
 extern DMA_HandleTypeDef hdma_adc1;
-extern DMA_HandleTypeDef hdma_i2c1_rx;
-extern DMA_HandleTypeDef hdma_i2c1_tx;
-extern I2C_HandleTypeDef hi2c1;
-extern DMA_HandleTypeDef hdma_usart1_rx;
-extern DMA_HandleTypeDef hdma_usart1_tx;
-extern UART_HandleTypeDef huart1;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -155,7 +152,7 @@ void DMA1_Channel1_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
 
   /* USER CODE END DMA1_Channel1_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_i2c1_tx);
+
   /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
 
   /* USER CODE END DMA1_Channel1_IRQn 1 */
@@ -167,12 +164,33 @@ void DMA1_Channel1_IRQHandler(void)
 void DMA1_Channel2_3_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA1_Channel2_3_IRQn 0 */
+	if (LL_DMA_IsActiveFlag_TC3(DMA1))
+	{
+		LL_DMA_ClearFlag_TC3(DMA1);
+		owRxDone = 1;
+	}
 
+	if (LL_DMA_IsActiveFlag_TC2(DMA1))
+	{
+		LL_DMA_ClearFlag_TC2(DMA1);
+		owTxDone = 1;
+	}
   /* USER CODE END DMA1_Channel2_3_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_i2c1_rx);
-  HAL_DMA_IRQHandler(&hdma_usart1_rx);
-  /* USER CODE BEGIN DMA1_Channel2_3_IRQn 1 */
 
+  /* USER CODE BEGIN DMA1_Channel2_3_IRQn 1 */
+	// Обработка окончания ПР�?ЕМА (Канал 3) - замена HAL_UART_RxCpltCallback
+	if (LL_DMA_IsActiveFlag_TC3(DMA1))
+	{
+		LL_DMA_ClearFlag_TC3(DMA1);
+		owRxDone = 1;
+	}
+
+	// Обработка окончания ПЕРЕДАЧ�? (Канал 2) - замена HAL_UART_TxCpltCallback
+	if (LL_DMA_IsActiveFlag_TC2(DMA1))
+	{
+		LL_DMA_ClearFlag_TC2(DMA1);
+		owTxDone = 1;
+	}
   /* USER CODE END DMA1_Channel2_3_IRQn 1 */
 }
 
@@ -182,9 +200,12 @@ void DMA1_Channel2_3_IRQHandler(void)
 void DMA1_Ch4_5_DMAMUX1_OVR_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA1_Ch4_5_DMAMUX1_OVR_IRQn 0 */
-
+	if (LL_DMA_IsActiveFlag_TC4(DMA1))
+	  {
+	    LL_DMA_ClearFlag_TC4(DMA1);
+	    owTxDone = 1;
+	  }
   /* USER CODE END DMA1_Ch4_5_DMAMUX1_OVR_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_usart1_tx);
   HAL_DMA_IRQHandler(&hdma_adc1);
   /* USER CODE BEGIN DMA1_Ch4_5_DMAMUX1_OVR_IRQn 1 */
   PWRMNG_Processing();
@@ -199,11 +220,7 @@ void I2C1_IRQHandler(void)
   /* USER CODE BEGIN I2C1_IRQn 0 */
 
   /* USER CODE END I2C1_IRQn 0 */
-  if (hi2c1.Instance->ISR & (I2C_FLAG_BERR | I2C_FLAG_ARLO | I2C_FLAG_OVR)) {
-    HAL_I2C_ER_IRQHandler(&hi2c1);
-  } else {
-    HAL_I2C_EV_IRQHandler(&hi2c1);
-  }
+
   /* USER CODE BEGIN I2C1_IRQn 1 */
 
   /* USER CODE END I2C1_IRQn 1 */
@@ -216,7 +233,6 @@ void USART1_IRQHandler(void)
 {
   /* USER CODE BEGIN USART1_IRQn 0 */
   /* USER CODE END USART1_IRQn 0 */
-  HAL_UART_IRQHandler(&huart1);
   /* USER CODE BEGIN USART1_IRQn 1 */
 
   /* USER CODE END USART1_IRQn 1 */
