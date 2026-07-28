@@ -58,7 +58,7 @@ void ADC_LowLevel_Init(void)
 	  Error_Handler();
   }
 
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)PWRMNG.AdcCod, 4);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)PWRMNG.AdcCod, 5);
 }
 
 /*********************************************************************************
@@ -84,7 +84,9 @@ void PWRMNG_Processing(void)
 	PWRMNG.IntegrVREF.Sum += KalmanFilter1(PWRMNG.AdcCod[VREF]);
 	PWRMNG.IntegrTEMP.Sum += KalmanFilter2(PWRMNG.AdcCod[TEMP]);
 	PWRMNG.IntegrVNTC.Sum += KalmanFilter3(PWRMNG.AdcCod[VNTC]);
-	PWRMNG.IntegrVBAT.Sum += KalmanFilter4(PWRMNG.AdcCod[VBAT]);
+	PWRMNG.IntegrVSHUNT.Sum += KalmanFilter4(PWRMNG.AdcCod[VSHUNHT]);
+	PWRMNG.IntegrVOPAMP.Sum += KalmanFilter5(PWRMNG.AdcCod[VOPAMP]);
+//	PWRMNG.IntegrVBAT.Sum += KalmanFilter4(PWRMNG.AdcCod[VBAT]);
 
 	if(PWRMNG.IntegrVREF.Index == 19)
 	{
@@ -109,13 +111,17 @@ void PWRMNG_Processing(void)
 		PWRMNG.Vntc = NTC_GetTemperature(PWRMNG.IntegrVNTC.Sum);
 		//----- Vbat -----------------------------------------
 
-		PWRMNG.Vbat = (PWRMNG.IntegrVBAT.Sum * 330u) / (4095u*16*2);					// 10-integrator, 16-oversmpling
+		PWRMNG.Vshunt = (PWRMNG.IntegrVSHUNT.Sum * 330u) / (4095u*16*2);			// 10-integrator, 16-oversmpling
+		PWRMNG.VopAmp = (PWRMNG.IntegrVOPAMP.Sum * 330u) / (4095u*16*2);			// 10-integrator, 16-oversmpling
+		PWRMNG.Vbat = (PWRMNG.IntegrVBAT.Sum * 330u) / (4095u*16*2);				// 10-integrator, 16-oversmpling
 //		PWRMNG.Vntc = (PWRMNG.IntegrVNTC.Sum * 330)/(4095*16);
 
 		PWRMNG.IntegrVREF.Index = 0;
 		PWRMNG.IntegrVREF.Sum = 0;
 		PWRMNG.IntegrTEMP.Sum = 0;
 		PWRMNG.IntegrVNTC.Sum = 0;
+		PWRMNG.IntegrVSHUNT.Sum = 0;
+		PWRMNG.IntegrVOPAMP.Sum = 0;
 		PWRMNG.IntegrVBAT.Sum = 0;
 	}
 	else

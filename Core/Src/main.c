@@ -49,10 +49,6 @@ DMA_HandleTypeDef hdma_adc1;
 
 /* USER CODE BEGIN PV */
 
-uint8_t sensorCount;
-int16_t testTemp1;
-int16_t testTemp2;
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -132,8 +128,8 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	  DS18B20_Processing();
 	  OLED_Processing();
+	  DS18B20_Processing();
 	  LED_Processing();
   }
   /* USER CODE END 3 */
@@ -201,7 +197,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.LowPowerAutoWait = DISABLE;
   hadc1.Init.LowPowerAutoPowerOff = DISABLE;
   hadc1.Init.ContinuousConvMode = ENABLE;
-  hadc1.Init.NbrOfConversion = 4;
+  hadc1.Init.NbrOfConversion = 5;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.DMAContinuousRequests = ENABLE;
@@ -250,6 +246,15 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = ADC_REGULAR_RANK_4;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = ADC_REGULAR_RANK_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -350,7 +355,6 @@ static void MX_I2C1_Init(void)
   */
   I2C_InitStruct.PeripheralMode = LL_I2C_MODE_I2C;
   I2C_InitStruct.Timing = 0x00100107;
-//  I2C_InitStruct.Timing = 0x0020061A;
   I2C_InitStruct.AnalogFilter = LL_I2C_ANALOGFILTER_ENABLE;
   I2C_InitStruct.DigitalFilter = 0;
   I2C_InitStruct.OwnAddress1 = 0;
@@ -516,8 +520,8 @@ static void MX_DMA_Init(void)
 static void MX_GPIO_Init(void)
 {
   LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
+  /* USER CODE BEGIN MX_GPIO_Init_1 */
+  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOB);
@@ -545,8 +549,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
   LL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
+  /* USER CODE BEGIN MX_GPIO_Init_2 */
+  /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -591,13 +595,6 @@ s32	KalmanFilter1(s32 val)
 	return result;
 }
 
-
-/**********************************************************************
-  * @brief  Фильтр Калмана на 2 значения.
-  * Похож на экспоненциальный фильтрПокажи как поси
-  * @param  None
-  * @retval None
-  ********************************************************************/
 s32	KalmanFilter2(s32 val)
 {
 	static s32 K = 1;		// 1000/2 = 0.5
@@ -616,12 +613,6 @@ s32	KalmanFilter2(s32 val)
 	return result;
 }
 
-/**********************************************************************
-  * @brief  Фильтр Калмана на 2 значения.
-  * Похож на экспоненциальный фильтрПокажи как поси
-  * @param  None
-  * @retval None
-  ********************************************************************/
 s32	KalmanFilter3(s32 val)
 {
 	static s32 K = 1;		// 1000/2 = 0.5
@@ -641,6 +632,24 @@ s32	KalmanFilter3(s32 val)
 }
 
 s32	KalmanFilter4(s32 val)
+{
+	static s32 K = 1;		// 1000/2 = 0.5
+	static s32 prev_val = 0;
+	s32	result;
+	s32	result1;
+	s32	result2;
+
+//	result = (((K*val)+((1000000-K)*prev_val))/1000000);
+	result1 = (K*val);
+	result2 = ((10-K)*prev_val);
+	result = (result1 + result2);
+	result = result/10;
+
+	prev_val = result;
+	return result;
+}
+
+s32	KalmanFilter5(s32 val)
 {
 	static s32 K = 1;		// 1000/2 = 0.5
 	static s32 prev_val = 0;
@@ -687,8 +696,7 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.

@@ -54,6 +54,11 @@
 /* USER CODE BEGIN PV */
 DS18B20_t	DS18B20;
 
+uint8_t sensorCount;
+int16_t testTemp1;
+int16_t testTemp1Old;
+int16_t testTemp2;
+int16_t testTemp2Old;
 //static UART_HandleTypeDef *ow_huart = NULL;
 
 /* DMA completion flags, set from HAL_UART_RxCpltCallback / TxCpltCallback */

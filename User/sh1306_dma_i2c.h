@@ -95,7 +95,6 @@ void OLED_Clear(u8 color);
 void OLED_RenderAll(void);
 void OLED_inverse_screen(unsigned char inverse);
 void PutPixel(uint8_t x, uint8_t y, uint8_t value);
-
 void OLED_Processing(void);
 
 #endif /*__Sh1306_Soft_I2c_H */

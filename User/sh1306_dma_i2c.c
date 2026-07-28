@@ -23,6 +23,7 @@
 #include "graphics5.h"
 #include "main.h"
 #include "power_module.h"
+#include "ds18b20_usart.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -88,38 +89,8 @@ void OLED_Init(void)
 	    0xAF  // Turn ON Panel
 	};
 
-	while(OLED_WriteDataAsync(SH1306_COMMANDS_ARRAY, oledInitCommands, sizeof(oledInitCommands)) == 1) {}
-
 	/* Init LCD */
-//	OLED_WriteCommand(0xAE); //display off
-//	OLED_WriteCommand(0x20); //Set Memory Addressing Mode
-//	OLED_WriteCommand(0x10); //00,Horizontal Addressing Mode;01,Vertical Addressing Mode;10,Page Addressing Mode (RESET);11,Invalid
-//	OLED_WriteCommand(0xB0); //Set Page Start Address for Page Addressing Mode,0-7
-//	OLED_WriteCommand(0xC8); //Set COM Output Scan Direction
-//	OLED_WriteCommand(0x00); //---set low column address
-//	OLED_WriteCommand(0x10); //---set high column address
-//	OLED_WriteCommand(0x40); //--set start line address
-//	OLED_WriteCommand(0x81); //--set contrast control register
-//	OLED_WriteCommand(0xff);
-//	OLED_WriteCommand(0xA1); //--set segment re-map 0 to 127
-//	OLED_WriteCommand(0xA6); //--set normal display
-//	OLED_WriteCommand(0xA8); //--set multiplex ratio(1 to 64)
-//	OLED_WriteCommand(0x3F); //
-//	OLED_WriteCommand(0xA4); //0xa4,Output follows RAM content;0xa5,Output ignores RAM content
-//	OLED_WriteCommand(0xD3); //-set display offset
-//	OLED_WriteCommand(0x00); //-not offset
-//	OLED_WriteCommand(0xD5); //--set display clock divide ratio/oscillator frequency
-//	OLED_WriteCommand(0xF0); //--set divide ratio
-//	OLED_WriteCommand(0xD9); //--set pre-charge period
-//	OLED_WriteCommand(0x22); //
-//	OLED_WriteCommand(0xDA); //--set com pins hardware configuration
-//	OLED_WriteCommand(0x12);
-//	OLED_WriteCommand(0xDB); //--set vcomh
-//	OLED_WriteCommand(0x20); //0x20,0.77xVcc
-//	OLED_WriteCommand(0x8D); //--set DC-DC enable
-//	OLED_WriteCommand(0x14); //
-//	OLED_WriteCommand(0xAF); //--turn on SSD1306 panel
-
+	while(OLED_WriteDataAsync(SH1306_COMMANDS_ARRAY, oledInitCommands, sizeof(oledInitCommands)) == 1) {}
 
 	OLED_Clear(0);
 
@@ -141,18 +112,27 @@ void OLED_Processing(void)
 //		sprintf(RenderBuffer, "n=%d  ", (u8)sensorCount);
 //		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
 
-		char sign = (testTemp1 < 0) ? '-' : ' ';
-		if (testTemp1 < 0) testTemp1 = -testTemp1; 									// Работаем с модулем числа
-		int16_t celsius = testTemp1 / 16;
-		int16_t fraction = ((testTemp1 % 16) * 10) / 16; 							// Переводит "шестнадцатые" строго в десятые
-		sprintf(RenderBuffer, "Tds1=%c%d.%d\x7F ", sign, celsius, fraction); 		// \x7F - degree sign °
-		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
+		y+=11;
+		if(testTemp1 != testTemp1Old) {
+			char sign = (testTemp1 < 0) ? '-' : ' ';
+			if (testTemp1 < 0) testTemp1 = -testTemp1; 									// Работаем с модулем числа
+			int16_t celsius = testTemp1 / 16;
+			int16_t fraction = ((testTemp1 % 16) * 10) / 16; 							// Переводит "шестнадцатые" строго в десятые
+			sprintf(RenderBuffer, "Tds1=%c%d.%d\x7F ", sign, celsius, fraction); 		// \x7F - degree sign °
+			LCD_PutText(RenderBuffer, 0, y, Tahoma8, 1, 1);
 
-		int16_t t_celsius = PWRMNG.Vntc / 100;       								// Целая часть (например, 25)
-		int16_t t_fraction = abs(PWRMNG.Vntc % 10); 								// Сотые доли (например, 50)
+			testTemp1Old = testTemp1;
+		}
 
-		sprintf(RenderBuffer, "Tntc= %d.%01d\x7F  ", t_celsius, t_fraction);
-		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
+		if(PWRMNG.Vntc != PWRMNG.VntcOld) {
+			int16_t t_celsius = PWRMNG.Vntc / 100;       								// Целая часть (например, 25)
+			int16_t t_fraction = abs(PWRMNG.Vntc % 10); 								// Сотые доли (например, 50)
+
+			sprintf(RenderBuffer, "Tntc= %d.%01d\x7F  ", t_celsius, t_fraction);
+			LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
+
+			PWRMNG.VntcOld = PWRMNG.Vntc;
+		}
 
 //		sign = (testTemp2 < 0) ? '-' : ' ';
 //		if (testTemp2 < 0) testTemp2 = -testTemp2; 									// Работаем с модулем числа
@@ -160,19 +140,52 @@ void OLED_Processing(void)
 //		fraction = ((testTemp2 % 16) * 10) / 16; 									// Переводит "шестнадцатые" строго в десятые
 //		sprintf(RenderBuffer, "Tds2=%c%d.%d\x7F ", sign, celsius, fraction); 		// \x7F - degree sign °
 //		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
-//
+
 //		sprintf(RenderBuffer, "Tmcu=%d.%d\x7F  ", PWRMNG.Temp/10, PWRMNG.Temp%10);
 //		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
 
-		sprintf(RenderBuffer, "Vref=%d.%03d  ", PWRMNG.Vref/1000, PWRMNG.Vref%1000);
-		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
-		sprintf(RenderBuffer, "Vdda=%d.%03d  ", PWRMNG.Vdda/1000, PWRMNG.Vdda%1000);
+		y+=11;
+		if(PWRMNG.Vref != PWRMNG.VrefOld) {
+			PWRMNG.VrefOld = PWRMNG.Vref;
+			sprintf(RenderBuffer, "Vref=%d.%03d  ", PWRMNG.Vref/1000, PWRMNG.Vref%1000);
+			LCD_PutText(RenderBuffer, 0, y, Tahoma8, 1, 1);
+		}
+
+		if(PWRMNG.Vdda != PWRMNG.VddaOld) {
+			PWRMNG.VddaOld = PWRMNG.Vdda;
+			sprintf(RenderBuffer, "Vdda=%d.%03d  ", PWRMNG.Vdda/1000, PWRMNG.Vdda%1000);
+			LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
+		}
+
+		y+=11;
+		if(PWRMNG.Vshunt != PWRMNG.VshuntOld) {
+			PWRMNG.VshuntOld = PWRMNG.Vshunt;
+			sprintf(RenderBuffer, "Vin= %d.%03d    ", PWRMNG.Vshunt/1000, PWRMNG.Vshunt%1000);
+			LCD_PutText(RenderBuffer, 0, y, Tahoma8, 1, 1);
+		}
+
+		s16 K = PWRMNG.VopAmp/PWRMNG.Vshunt;
+		sprintf(RenderBuffer, "K=%d  ", K);
 		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
 
-		sprintf(RenderBuffer, "Vbat=%d    ", PWRMNG.Vbat);
-		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
-//		sprintf(RenderBuffer, "%d    ", PWRMNG.AdcCod[VBAT]);
-//		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
+		y+=11;
+		if(PWRMNG.VopAmp != PWRMNG.VopAmpOld) {
+			PWRMNG.VopAmpOld = PWRMNG.VopAmp;
+			sprintf(RenderBuffer, "Vou=%d.%03d    ", PWRMNG.VopAmp/1000, PWRMNG.VopAmp%1000);
+			LCD_PutText(RenderBuffer, 0, y, Tahoma8, 1, 1);
+		}
+
+		s16 I = PWRMNG.VopAmp*100/143;
+		sprintf(RenderBuffer, "I=%d.%03dA  ", I/1000, I%1000);
+		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
+
+//		y+=11;
+//		if(PWRMNG.Vbat != PWRMNG.VbatOld) {
+//			PWRMNG.VbatOld = PWRMNG.Vbat;
+//			sprintf(RenderBuffer, "Vbat=%d.%03d    ", PWRMNG.Vbat/1000, PWRMNG.Vbat%1000);
+//			LCD_PutText(RenderBuffer, 0, y, Tahoma8, 1, 1);
+//		}
+
 
 		OLED.flag.sendData = 1;
 	}
@@ -215,6 +228,19 @@ void OLED_RenderAll(void)
 		break;
 
 		case 1:
+			while (y < 8) {
+				if (OLED.glcd_dirty_pages & (1u << y)) {
+					break;
+				}
+				y++;
+			}
+
+			if (y >= 8) {
+				OLED.glcd_dirty_pages = 0;
+				OLED.MainStateMachine = 0;
+				break;
+			}
+
 			if(!LL_I2C_IsActiveFlag_BUSY(I2C1))
 			{
 				commands[0] = SH1106_PAGEADDR | y;
@@ -239,6 +265,7 @@ void OLED_RenderAll(void)
 
 		case 4:
 			if(OLED_WriteDataAsync(SH1306_DATA, &OLED.Buffer[y*128], 128) == 0) {
+				OLED.glcd_dirty_pages &= ~(1u << y); // страница отправлена
 				OLED.MainStateMachine++;
 			}
 		break;
@@ -270,18 +297,18 @@ void OLED_RenderAll(void)
  *********************************************************************************/
 void PutPixel(uint8_t x, uint8_t y, uint8_t value)
 {
-	unsigned short array_pos;
-
-	array_pos = x + ((y / 8) * 128);
-	OLED.glcd_dirty_pages |= 1 << (array_pos / 128);
-
 	if (x > SCREEN_WIDTH || y > SCREEN_HEIGHT)
-		return;
+			return;
+
+	uint16_t page = y / 8;
+	uint16_t array_pos = x + (page * 128);
+
+	OLED.glcd_dirty_pages |= (1u << page);   // помечаем страницу как грязную
 
 	if (value)
-		OLED.Buffer[array_pos] |= (1 << (y % 8));
+		OLED.Buffer[array_pos] |= (1u << (y % 8));
 	else
-		OLED.Buffer[array_pos] &= (0xFF ^ (1 << (y % 8)));
+		OLED.Buffer[array_pos] &= ~(1u << (y % 8));
 }
 
 /*********************************************************************************

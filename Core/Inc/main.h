@@ -86,6 +86,7 @@ s32	KalmanFilter1(s32 val);
 s32	KalmanFilter2(s32 val);
 s32	KalmanFilter3(s32 val);
 s32	KalmanFilter4(s32 val);
+s32	KalmanFilter5(s32 val);
 
 /* USER CODE END EFP */
 
