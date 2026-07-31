@@ -27,7 +27,7 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32g0xx_hal.h"
+#include "stm32g0xx_ll_adc.h"
 #include "stm32g0xx_ll_dma.h"
 #include "stm32g0xx_ll_i2c.h"
 #include "stm32g0xx_ll_rcc.h"
@@ -39,6 +39,10 @@ extern "C" {
 #include "stm32g0xx_ll_pwr.h"
 #include "stm32g0xx_ll_usart.h"
 #include "stm32g0xx_ll_gpio.h"
+
+#if defined(USE_FULL_ASSERT)
+#include "stm32_assert.h"
+#endif /* USE_FULL_ASSERT */
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -66,10 +70,8 @@ typedef struct
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
 extern unsigned long SystemCounter;
-extern uint8_t sensorCount;
-extern int16_t testTemp1;
-extern int16_t testTemp2;
-extern ADC_HandleTypeDef hadc1;
+extern LL_RCC_ClocksTypeDef RCC_Clocks;
+//extern ADC_HandleTypeDef hadc1;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

@@ -53,12 +53,54 @@ void ADC_LowLevel_Init(void);
 *********************************************************************************/
 void ADC_LowLevel_Init(void)
 {
-  if (HAL_ADCEx_Calibration_Start(&hadc1) != HAL_OK)
-  {
-	  Error_Handler();
-  }
+	/* DMA must be disabled during calibration */
+	LL_ADC_REG_SetDMATransfer(ADC1, LL_ADC_REG_DMA_TRANSFER_NONE);
 
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)PWRMNG.AdcCod, 5);
+	if (LL_ADC_IsEnabled(ADC1) == 0)
+	{
+		LL_ADC_StartCalibration(ADC1);
+
+		uint32_t timeout = SystemCounter + 1000;
+		while (LL_ADC_IsCalibrationOnGoing(ADC1) != 0)
+		{
+			if (timeout < SystemCounter)
+			{
+				Error_Handler();
+			}
+		}
+
+		LL_ADC_Enable(ADC1);
+
+		timeout = SystemCounter + 1000;
+		while (LL_ADC_IsActiveFlag_ADRDY(ADC1) == 0)
+		{
+			if (timeout < SystemCounter)
+			{
+				Error_Handler();
+			}
+		}
+
+		LL_ADC_ClearFlag_ADRDY(ADC1);
+	}
+
+
+	LL_ADC_REG_SetDMATransfer(ADC1, LL_ADC_REG_DMA_TRANSFER_UNLIMITED);
+	LL_DMA_ClearFlag_TC5(DMA1);
+	LL_DMA_ClearFlag_TE5(DMA1);
+
+
+	LL_DMA_ConfigAddresses(
+		DMA1, LL_DMA_CHANNEL_5,
+		LL_ADC_DMA_GetRegAddr(ADC1, LL_ADC_DMA_REG_REGULAR_DATA),
+		(uint32_t)PWRMNG.AdcCod,
+		LL_DMA_DIRECTION_PERIPH_TO_MEMORY
+	);
+
+	LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_5);
+	LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_5, 5);
+	LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_5);
+
+	LL_ADC_REG_StartConversion(ADC1);
 }
 
 /*********************************************************************************
@@ -88,10 +130,11 @@ void PWRMNG_Processing(void)
 	PWRMNG.IntegrVOPAMP.Sum += KalmanFilter5(PWRMNG.AdcCod[VOPAMP]);
 //	PWRMNG.IntegrVBAT.Sum += KalmanFilter4(PWRMNG.AdcCod[VBAT]);
 
-	if(PWRMNG.IntegrVREF.Index == 19)
+	if(PWRMNG.IntegrVREF.Index == 9)
 	{
+		LED_Off(LED0);
 		//----- VRef -----------------------------------------
-		uint32_t vRefInt_raw = PWRMNG.IntegrVREF.Sum / 20u /16;						// 10-integrator, 16-oversmpling
+		uint32_t vRefInt_raw = PWRMNG.IntegrVREF.Sum / 10u /16;						// 10-integrator, 16-oversmpling
 		PWRMNG.Vref = (vRefInt_raw * 3300u) / (4095u);
 
 		//----- Vdda -----------------------------------------
@@ -102,17 +145,17 @@ void PWRMNG_Processing(void)
 		int32_t tempSensCal1Addr = *TEMPSENSOR_CAL1_ADDR;							// 1030
 		int32_t tempSensCal2Addr = *TEMPSENSOR_CAL2_ADDR;							// 1367
 
-		PWRMNG.IntegrTEMP.Sum = PWRMNG.IntegrTEMP.Sum / 2/16;							// На 10 не делим чтобы сохранить десятые 26,5
+		PWRMNG.IntegrTEMP.Sum = PWRMNG.IntegrTEMP.Sum / 1/16;							// На 10 не делим чтобы сохранить десятые 26,5
 		int32_t vTempCorrected = (PWRMNG.IntegrTEMP.Sum * PWRMNG.Vdda / 3000);		// 14000
 		PWRMNG.Temp = ((100*(vTempCorrected-tempSensCal1Addr*10))/(tempSensCal2Addr - tempSensCal1Addr))+300;
 
 		//----- Vntc -----------------------------------------
-		PWRMNG.IntegrVNTC.Sum = PWRMNG.IntegrVNTC.Sum/20/16;
+		PWRMNG.IntegrVNTC.Sum = PWRMNG.IntegrVNTC.Sum/10/16;
 		PWRMNG.Vntc = NTC_GetTemperature(PWRMNG.IntegrVNTC.Sum);
 		//----- Vbat -----------------------------------------
 
-		PWRMNG.Vshunt = (PWRMNG.IntegrVSHUNT.Sum * 330u) / (4095u*16*2);			// 10-integrator, 16-oversmpling
-		PWRMNG.VopAmp = (PWRMNG.IntegrVOPAMP.Sum * 330u) / (4095u*16*2);			// 10-integrator, 16-oversmpling
+		PWRMNG.Vshunt = (PWRMNG.IntegrVSHUNT.Sum * 330u) / (4095u*16);			// 10-integrator, 16-oversmpling
+		PWRMNG.VopAmp = (PWRMNG.IntegrVOPAMP.Sum * 330u) / (4095u*16);			// 10-integrator, 16-oversmpling
 		PWRMNG.Vbat = (PWRMNG.IntegrVBAT.Sum * 330u) / (4095u*16*2);				// 10-integrator, 16-oversmpling
 //		PWRMNG.Vntc = (PWRMNG.IntegrVNTC.Sum * 330)/(4095*16);
 
@@ -123,6 +166,7 @@ void PWRMNG_Processing(void)
 		PWRMNG.IntegrVSHUNT.Sum = 0;
 		PWRMNG.IntegrVOPAMP.Sum = 0;
 		PWRMNG.IntegrVBAT.Sum = 0;
+		LED_On(LED0);
 	}
 	else
 		PWRMNG.IntegrVREF.Index++;

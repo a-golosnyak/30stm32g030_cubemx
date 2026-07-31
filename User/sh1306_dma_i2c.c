@@ -96,6 +96,9 @@ void OLED_Init(void)
 
 	LCD_PutText(" Temp Module v1.0 Debug ", 0, 0, Tahoma8, 1, 1);
 	LCD_DrawLine(0, 10, 127, 10, 1);
+
+	sprintf(RenderBuffer, "SCLK=%dMHz  ", (int)RCC_Clocks.SYSCLK_Frequency/1000000);
+	LCD_PutText(RenderBuffer, 64, 11, Tahoma8, 1, 1);
 }
 
 /*********************************************************************************
@@ -105,9 +108,12 @@ void OLED_Init(void)
  *********************************************************************************/
 void OLED_Processing(void)
 {
-	if (HAL_GetTick() - OLED.Counter >= 100) {
-		OLED.Counter = HAL_GetTick();
+	if (OLED.Counter < SystemCounter)
+	{
+		OLED.Counter = SystemCounter + 100;
+//		LED_TurnOn(LED1, 1);
 		u8 y = 0;
+//		LED_On(LED1);
 
 //		sprintf(RenderBuffer, "n=%d  ", (u8)sensorCount);
 //		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
@@ -119,7 +125,7 @@ void OLED_Processing(void)
 			int16_t celsius = testTemp1 / 16;
 			int16_t fraction = ((testTemp1 % 16) * 10) / 16; 							// Переводит "шестнадцатые" строго в десятые
 			sprintf(RenderBuffer, "Tds1=%c%d.%d\x7F ", sign, celsius, fraction); 		// \x7F - degree sign °
-			LCD_PutText(RenderBuffer, 0, y, Tahoma8, 1, 1);
+			LCD_PutText(RenderBuffer, 64, y, Tahoma8, 1, 1);
 
 			testTemp1Old = testTemp1;
 		}
@@ -129,10 +135,15 @@ void OLED_Processing(void)
 			int16_t t_fraction = abs(PWRMNG.Vntc % 10); 								// Сотые доли (например, 50)
 
 			sprintf(RenderBuffer, "Tntc= %d.%01d\x7F  ", t_celsius, t_fraction);
-			LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
+			LCD_PutText(RenderBuffer, 0, y, Tahoma8, 1, 1);
 
 			PWRMNG.VntcOld = PWRMNG.Vntc;
+
 		}
+		//		sprintf(RenderBuffer, "SYSCLK=%d  ", (int)RCC_Clocks.SYSCLK_Frequency);
+		//		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
+
+//------------------------------------------------------------------------------------------------------------------------
 
 //		sign = (testTemp2 < 0) ? '-' : ' ';
 //		if (testTemp2 < 0) testTemp2 = -testTemp2; 									// Работаем с модулем числа
@@ -142,7 +153,24 @@ void OLED_Processing(void)
 //		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
 
 //		sprintf(RenderBuffer, "Tmcu=%d.%d\x7F  ", PWRMNG.Temp/10, PWRMNG.Temp%10);
-//		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
+//		LCD_PutText(RenderBuffer, 64, y, Tahoma8, 1, 1);
+//		y+=11;
+//		if(PWRMNG.Vbat != PWRMNG.VbatOld) {
+//			PWRMNG.VbatOld = PWRMNG.Vbat;
+//			sprintf(RenderBuffer, "Vbat=%d.%03d    ", PWRMNG.Vbat/1000, PWRMNG.Vbat%1000);
+//			LCD_PutText(RenderBuffer, 0, y, Tahoma8, 1, 1);
+//		}
+//---------- RCC ---------------------------------------------------------------------------------------------------------
+//		sprintf(RenderBuffer, "SYSCLK=%d  ", (int)RCC_Clocks.SYSCLK_Frequency);
+//		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
+//
+//		sprintf(RenderBuffer, "HCLK=    %d  ", (int)RCC_Clocks.HCLK_Frequency);
+//		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
+//
+//		sprintf(RenderBuffer, "PCLK1=   %d  ", (int)RCC_Clocks.PCLK1_Frequency);
+//		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
+
+//------------------------------------------------------------------------------------------------------------------------
 
 		y+=11;
 		if(PWRMNG.Vref != PWRMNG.VrefOld) {
@@ -154,7 +182,7 @@ void OLED_Processing(void)
 		if(PWRMNG.Vdda != PWRMNG.VddaOld) {
 			PWRMNG.VddaOld = PWRMNG.Vdda;
 			sprintf(RenderBuffer, "Vdda=%d.%03d  ", PWRMNG.Vdda/1000, PWRMNG.Vdda%1000);
-			LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
+			LCD_PutText(RenderBuffer, 64, y, Tahoma8, 1, 1);
 		}
 
 		y+=11;
@@ -166,7 +194,7 @@ void OLED_Processing(void)
 
 		s16 K = PWRMNG.VopAmp/PWRMNG.Vshunt;
 		sprintf(RenderBuffer, "K=%d  ", K);
-		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
+		LCD_PutText(RenderBuffer, 64, y, Tahoma8, 1, 1);
 
 		y+=11;
 		if(PWRMNG.VopAmp != PWRMNG.VopAmpOld) {
@@ -177,17 +205,11 @@ void OLED_Processing(void)
 
 		s16 I = PWRMNG.VopAmp*100/143;
 		sprintf(RenderBuffer, "I=%d.%03dA  ", I/1000, I%1000);
-		LCD_PutText(RenderBuffer, 70, y, Tahoma8, 1, 1);
-
-//		y+=11;
-//		if(PWRMNG.Vbat != PWRMNG.VbatOld) {
-//			PWRMNG.VbatOld = PWRMNG.Vbat;
-//			sprintf(RenderBuffer, "Vbat=%d.%03d    ", PWRMNG.Vbat/1000, PWRMNG.Vbat%1000);
-//			LCD_PutText(RenderBuffer, 0, y, Tahoma8, 1, 1);
-//		}
+		LCD_PutText(RenderBuffer, 64, y, Tahoma8, 1, 1);
 
 
 		OLED.flag.sendData = 1;
+//		LED_Off(LED1);
 	}
 
 
@@ -224,6 +246,7 @@ void OLED_RenderAll(void)
 				x = 0;
 				y = 0;
 				OLED.MainStateMachine++;
+//				LED_On(LED1);
 			}
 		break;
 
@@ -236,6 +259,7 @@ void OLED_RenderAll(void)
 			}
 
 			if (y >= 8) {
+//				LED_Off(LED1);
 				OLED.glcd_dirty_pages = 0;
 				OLED.MainStateMachine = 0;
 				break;
@@ -280,6 +304,7 @@ void OLED_RenderAll(void)
 		break;
 
 		case 6:
+//			LED_Off(LED1);
 			OLED.glcd_dirty_pages = 0;
 			OLED.MainStateMachine = 0;
 		break;
@@ -413,8 +438,8 @@ u8 OLED_WriteCommand(uint8_t data)
 	    LL_I2C_HandleTransfer(I2C1, SH1306_ADDR, LL_I2C_ADDRSLAVE_7BIT, 2, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE);
 	    LL_I2C_EnableDMAReq_TX(I2C1);
 
-	    uint32_t start = HAL_GetTick();
-	    while(!LL_I2C_IsActiveFlag_STOP(I2C1) && !LL_I2C_IsActiveFlag_NACK(I2C1) && (HAL_GetTick() - start < 10U)) {}
+	    uint32_t start = SystemCounter + 10;
+	    while(!LL_I2C_IsActiveFlag_STOP(I2C1) && !LL_I2C_IsActiveFlag_NACK(I2C1) && (start < SystemCounter)) {}
 
 	    status = LL_I2C_IsActiveFlag_NACK(I2C1);
 	    LL_I2C_DisableDMAReq_TX(I2C1);
@@ -449,8 +474,8 @@ u8 OLED_WriteData(uint8_t* data, uint16_t Size)
 	    LL_I2C_HandleTransfer(I2C1, SH1306_ADDR, LL_I2C_ADDRSLAVE_7BIT, Size + 1, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE);
 	    LL_I2C_EnableDMAReq_TX(I2C1);
 
-	    uint32_t start = HAL_GetTick();
-	    while(!LL_I2C_IsActiveFlag_STOP(I2C1) && !LL_I2C_IsActiveFlag_NACK(I2C1) && (HAL_GetTick() - start < 10U)) {}
+	    uint32_t start = SystemCounter + 10;
+	    while(!LL_I2C_IsActiveFlag_STOP(I2C1) && !LL_I2C_IsActiveFlag_NACK(I2C1) && (start < SystemCounter)) {}
 
 	    status = LL_I2C_IsActiveFlag_NACK(I2C1);
 	    LL_I2C_DisableDMAReq_TX(I2C1);

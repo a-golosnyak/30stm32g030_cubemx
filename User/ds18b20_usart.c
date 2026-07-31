@@ -3,6 +3,15 @@
   ******************************************************************************
   * @file           : ds18b20.c
   * @brief          : DS18B20 driver implementation
+  * Usage: 	- MX_USART1_UART_Init(); - init periph
+  * 		- DS18B20_Init();
+			- sensorCount = DS18B20_SearchAll();
+			- DS18B20_Processing();
+
+			Problems.
+			There is a while in data sending.
+			Try read sensors without DMA on a max USART speed.
+			Or try to write async functions.
   ******************************************************************************
   */
 /* USER CODE END Header */
@@ -105,13 +114,13 @@ static void OW_SetBaud(uint32_t baud)
   *         __WFI() lets the core sleep between interrupts while waiting
   *         instead of pure busy-loop spinning.
   */
-static HAL_StatusTypeDef OW_WaitRx(uint32_t timeoutMs)
+static ErrorStatus  OW_WaitRx(uint32_t timeoutMs)
 {
-    uint32_t start = HAL_GetTick();
+    uint32_t start = SystemCounter + timeoutMs;
 
     while (!(owRxDone && owTxDone))
     {
-        if ((HAL_GetTick() - start) > timeoutMs)
+        if (start < SystemCounter)
         {
         	LL_USART_DisableDMAReq_RX(USART1);
 			LL_USART_DisableDMAReq_TX(USART1);
@@ -119,13 +128,13 @@ static HAL_StatusTypeDef OW_WaitRx(uint32_t timeoutMs)
 			LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_4);
             owRxDone = 0;
             owTxDone = 0;
-            return HAL_TIMEOUT;
+            return ERROR;
         }
         __WFI();
     }
     owRxDone = 0;
     owTxDone = 0;
-    return HAL_OK;
+    return SUCCESS;
 }
 
 /**
@@ -134,7 +143,7 @@ static HAL_StatusTypeDef OW_WaitRx(uint32_t timeoutMs)
   * @note   RX DMA is armed BEFORE TX DMA is started, so every echoed bit
   *         is captured as it is clocked out.
   */
-static HAL_StatusTypeDef OW_Transceive(const uint8_t *tx, uint8_t *rx, uint16_t len)
+static ErrorStatus OW_Transceive(const uint8_t *tx, uint8_t *rx, uint16_t len)
 {
 	LL_DMA_ClearFlag_TC3(DMA1); // Очищаем флаг окончания предыдущего приема (Канал 3)
 	LL_DMA_ClearFlag_TE3(DMA1); // Очищаем флаг ошибки приема
@@ -172,7 +181,7 @@ static uint8_t OW_Reset(void)
 
     OW_SetBaud(OW_BAUD_RESET);
 
-	if (OW_Transceive(&tx, &rx, 1) != HAL_OK)
+	if (OW_Transceive(&tx, &rx, 1) != SUCCESS)
 	{
 		OW_SetBaud(OW_BAUD_DATA);
 		return 0;
@@ -462,13 +471,13 @@ void DS18B20_Processing1()
 		case 0:
 //			MX_USART1_UART_Init();
 //			DS18B20_Init(&huart1);
-			DS18B20.Counter += 200;
+			DS18B20.Counter = SystemCounter + 200;
 			DS18B20.MainStateMachine++;
 		break;
 
 		case 1:
 			if(DS18B20.Counter < SystemCounter) {
-				DS18B20.Counter += 200;
+				DS18B20.Counter = SystemCounter + 200;
 				DS18B20.MainStateMachine++;
 			}
 		break;
@@ -630,7 +639,9 @@ uint8_t DS18B20_QuickTestSkipROM(int16_t *outRaw)
 
     OW_ByteIO(DS18B20_CMD_SKIP_ROM);
     OW_ByteIO(DS18B20_CMD_CONVERT_T);
-    HAL_Delay(750); /* diagnostic only — blocking is fine here */
+
+    uint32_t delay = SystemCounter + 750;
+    while(delay > SystemCounter) {};
 
     if (!OW_Reset()) {
         return 0; /* lost presence between convert and read */

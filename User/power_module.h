@@ -33,7 +33,7 @@ typedef enum
 	VNTC,
 	VSHUNHT,
 	VOPAMP,
-	VBAT,
+//	VBAT,
 	CODSIZE
 }AdcCod_e;
 

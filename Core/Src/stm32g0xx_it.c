@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "power_module.h"
+#include "led_module.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,8 +43,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-unsigned long SystemCounter;
-
 extern volatile uint8_t owRxDone;
 extern volatile uint8_t owTxDone;
 /* USER CODE END PV */
@@ -59,7 +58,7 @@ extern volatile uint8_t owTxDone;
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern DMA_HandleTypeDef hdma_adc1;
+
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -131,9 +130,9 @@ void SysTick_Handler(void)
   /* USER CODE BEGIN SysTick_IRQn 0 */
 	SystemCounter++;
   /* USER CODE END SysTick_IRQn 0 */
-  HAL_IncTick();
-  /* USER CODE BEGIN SysTick_IRQn 1 */
 
+  /* USER CODE BEGIN SysTick_IRQn 1 */
+//	LED_On(LED1); delayUs(10); LED_Off(LED1);
   /* USER CODE END SysTick_IRQn 1 */
 }
 
@@ -199,14 +198,17 @@ void DMA1_Ch4_5_DMAMUX1_OVR_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA1_Ch4_5_DMAMUX1_OVR_IRQn 0 */
 	if (LL_DMA_IsActiveFlag_TC4(DMA1))
-	  {
-	    LL_DMA_ClearFlag_TC4(DMA1);
-	    owTxDone = 1;
-	  }
+	{
+		LL_DMA_ClearFlag_TC4(DMA1);
+		owTxDone = 1;
+	}
   /* USER CODE END DMA1_Ch4_5_DMAMUX1_OVR_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_adc1);
   /* USER CODE BEGIN DMA1_Ch4_5_DMAMUX1_OVR_IRQn 1 */
-  PWRMNG_Processing();
+	if (LL_DMA_IsActiveFlag_TC5(DMA1))
+	{
+		LL_DMA_ClearFlag_TC5(DMA1);
+		PWRMNG_Processing();
+	}
   /* USER CODE END DMA1_Ch4_5_DMAMUX1_OVR_IRQn 1 */
 }
 

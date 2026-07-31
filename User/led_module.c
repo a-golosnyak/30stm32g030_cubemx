@@ -24,9 +24,9 @@
 
 #define LEDn	2
 
-GPIO_TypeDef* GPIO_PORT[LEDn] = {	GPIOB, GPIOA };
+GPIO_TypeDef* GPIO_PORT[LEDn] = { GPIOB, GPIOA };
 
-const uint16_t GPIO_PIN[LEDn] = { 	GPIO_PIN_0, GPIO_PIN_4 };
+const uint16_t GPIO_PIN[LEDn] = { LL_GPIO_PIN_0, LL_GPIO_PIN_4 };
 
 LEDs_t LED[LEDn];
 
@@ -46,30 +46,33 @@ LEDs_t LED[LEDn];
    ********************************************************************/
 void LED_Init (void)
 {
-	GPIO_InitTypeDef GPIO_InitStruct = {0};
+	LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
 
 	  /* GPIO Ports Clock Enable */
-	  __HAL_RCC_GPIOB_CLK_ENABLE();
-	  __HAL_RCC_GPIOA_CLK_ENABLE();
+	  LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOA);
+	  LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOB);
 
 	  /*Configure GPIO pin Output Level */
-	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+	  LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_0);
+
 	  /*Configure GPIO pin Output Level */
-	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+	  LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_4);
 
 	  /*Configure GPIO pins : PB0 */
-	  GPIO_InitStruct.Pin = GPIO_PIN_0;
-	  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-	  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	  GPIO_InitStruct.Pin = LL_GPIO_PIN_0;
+	  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+	  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+	  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+	  GPIO_InitStruct.Speed = LL_GPIO_SPEED_HIGH;
+	  LL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 	  /*Configure GPIO pin : PA4 */
-	  GPIO_InitStruct.Pin = GPIO_PIN_4;
-	  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-	  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	  GPIO_InitStruct.Pin = LL_GPIO_PIN_4;
+	  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+	  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+	  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+	  GPIO_InitStruct.Speed = LL_GPIO_SPEED_HIGH;
+	  LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 	  LED_On(LED0);		// Inverted state.
 }
@@ -138,6 +141,7 @@ void LED_TurnOn_Blink(Led_TypeDef led, u16 time_on, u16 time_off, u16 times)
   * @param  None
   * @retval None
   ********************************************************************/
+
 void LED_Processing(void)
 {
 	static u8 i;
@@ -146,18 +150,42 @@ void LED_Processing(void)
 	{
 		if (LED[i].Times != 0)
 		{
-			if ( (HAL_GPIO_ReadPin(GPIO_PORT[i], GPIO_PIN[i]) == GPIO_PIN_SET) && (SystemCounter > LED[i].Counter) )
+			if ( (LL_GPIO_IsInputPinSet(GPIO_PORT[i], GPIO_PIN[i]) == SET) && (SystemCounter > LED[i].Counter) )
 			{
 				LED_Off((Led_TypeDef)i);
 				LED[i].Counter = SystemCounter + LED[i].TimeOff;
 				LED[i].Times--;
-			}	
-			else if ( (HAL_GPIO_ReadPin(GPIO_PORT[i], GPIO_PIN[i]) == GPIO_PIN_RESET) && (SystemCounter > LED[i].Counter) )
+			}
+			else if ( (LL_GPIO_IsInputPinSet(GPIO_PORT[i], GPIO_PIN[i]) == RESET) && (SystemCounter > LED[i].Counter) )
 			{
 				LED_On((Led_TypeDef)i);
 				LED[i].Counter = SystemCounter + LED[i].TimeOn;
 				LED[i].Times--;
 			}
+		}
+	}
+}
+
+
+void LED_Processing_refactored(void)
+{
+	static u8 i;
+
+	for (i = 0; i < LEDn; i++)
+	{
+		if (LED[i].Times != 0 && (SystemCounter > LED[i].Counter) )
+		{
+			if ( (LL_GPIO_IsOutputPinSet(GPIO_PORT[i], GPIO_PIN[i]) == 1) )
+			{
+				LED_Off((Led_TypeDef)i);
+				LED[i].Counter = SystemCounter + LED[i].TimeOff;
+			}	
+			else if ( (LL_GPIO_IsOutputPinSet(GPIO_PORT[i], GPIO_PIN[i]) == 0) )
+			{
+				LED_On((Led_TypeDef)i);
+				LED[i].Counter = SystemCounter + LED[i].TimeOn;
+			}
+			LED[i].Times--;
 		}		
 	}
 }
