@@ -53,16 +53,54 @@ void ADC_LowLevel_Init(void);
 *********************************************************************************/
 void ADC_LowLevel_Init(void)
 {
-  if (HAL_ADCEx_Calibration_Start(&hadc1) != HAL_OK)
-  {
-	  /* Ошибка калибровки — можно обработать тут */
-	  Error_Handler();
-  }
+	/* DMA must be disabled during calibration */
+	LL_ADC_REG_SetDMATransfer(ADC1, LL_ADC_REG_DMA_TRANSFER_NONE);
 
-  // 2. Запуск АЦП в режиме DMA
-  // Функция сама запишет адрес вашего массива (adc_buffer) в регистр DMA_CMAR!
-  // Последний параметр — это количество измерений (размер массива)
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)PWRMNG.AdcCod, 4);
+	if (LL_ADC_IsEnabled(ADC1) == 0)
+	{
+		LL_ADC_StartCalibration(ADC1);
+
+		uint32_t timeout = SystemCounter + 1000;
+		while (LL_ADC_IsCalibrationOnGoing(ADC1) != 0)
+		{
+			if (timeout < SystemCounter)
+			{
+				Error_Handler();
+			}
+		}
+
+		LL_ADC_Enable(ADC1);
+
+		timeout = SystemCounter + 1000;
+		while (LL_ADC_IsActiveFlag_ADRDY(ADC1) == 0)
+		{
+			if (timeout < SystemCounter)
+			{
+				Error_Handler();
+			}
+		}
+
+		LL_ADC_ClearFlag_ADRDY(ADC1);
+	}
+
+
+	LL_ADC_REG_SetDMATransfer(ADC1, LL_ADC_REG_DMA_TRANSFER_UNLIMITED);
+	LL_DMA_ClearFlag_TC5(DMA1);
+	LL_DMA_ClearFlag_TE5(DMA1);
+
+
+	LL_DMA_ConfigAddresses(
+		DMA1, LL_DMA_CHANNEL_5,
+		LL_ADC_DMA_GetRegAddr(ADC1, LL_ADC_DMA_REG_REGULAR_DATA),
+		(uint32_t)PWRMNG.AdcCod,
+		LL_DMA_DIRECTION_PERIPH_TO_MEMORY
+	);
+
+	LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_5);
+	LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_5, 5);
+	LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_5);
+
+	LL_ADC_REG_StartConversion(ADC1);
 }
 
 /*********************************************************************************
@@ -83,75 +121,58 @@ void POWER_Init(void)
 *********************************************************************************/
 void PWRMNG_Processing(void)
 {
-	LED_On(LED1);
+//	LED_On(LED1);
 
 	PWRMNG.IntegrVREF.Sum += KalmanFilter1(PWRMNG.AdcCod[VREF]);
-//	PWRMNG.IntegrVREF.Sum += PWRMNG.AdcCod[VREF];
 	PWRMNG.IntegrTEMP.Sum += KalmanFilter2(PWRMNG.AdcCod[TEMP]);
 	PWRMNG.IntegrVNTC.Sum += KalmanFilter3(PWRMNG.AdcCod[VNTC]);
-	PWRMNG.IntegrVBAT.Sum += PWRMNG.AdcCod[VBAT];
+	PWRMNG.IntegrVSHUNT.Sum += KalmanFilter4(PWRMNG.AdcCod[VSHUNHT]);
+	PWRMNG.IntegrVOPAMP.Sum += KalmanFilter5(PWRMNG.AdcCod[VOPAMP]);
+//	PWRMNG.IntegrVBAT.Sum += KalmanFilter4(PWRMNG.AdcCod[VBAT]);
 
 	if(PWRMNG.IntegrVREF.Index == 9)
 	{
+		LED_Off(LED0);
 		//----- VRef -----------------------------------------
 		uint32_t vRefInt_raw = PWRMNG.IntegrVREF.Sum / 10u /16;						// 10-integrator, 16-oversmpling
 		PWRMNG.Vref = (vRefInt_raw * 3300u) / (4095u);
 
-		//----- Vtemp ----------------------------------------
-		int32_t tempSensCal1Addr = *TEMPSENSOR_CAL1_ADDR;							// 1030
-		int32_t tempSensCal2Addr = *TEMPSENSOR_CAL2_ADDR;							// 1367
-//		PWRMNG.IntegrTEMP.Sum = PWRMNG.IntegrTEMP.Sum / 160;
-//		int16_t vTempCorrected = (PWRMNG.IntegrTEMP.Sum * PWRMNG.Vdda / 3000);		// 1400
-//		PWRMNG.Temp = ((100*(vTempCorrected-tempSensCal1Addr))/(tempSensCal2Addr - tempSensCal1Addr))+30;
-
-		PWRMNG.IntegrTEMP.Sum = PWRMNG.IntegrTEMP.Sum / 16;							// На 10 не делим чтобы сохранить десятые 26,5
-		int32_t vTempCorrected = (PWRMNG.IntegrTEMP.Sum * PWRMNG.Vdda / 3000);		// 14000
-		PWRMNG.Temp = ((100*(vTempCorrected-tempSensCal1Addr*10))/(tempSensCal2Addr - tempSensCal1Addr))+300;
-		//----- Vntc -----------------------------------------
-//		PWRMNG.Vntc = (PWRMNG.IntegrVNTC.Sum * 330)/(0xFFF*16);
-		PWRMNG.IntegrVNTC.Sum = PWRMNG.IntegrVNTC.Sum/10/16;
-
-		// Защита от критических значений (обрыв / КЗ)
-//		if (PWRMNG.IntegrVNTC.Sum <= 150)  {
-//			PWRMNG.IntegrVNTC.Sum = 12500; // Ограничение сверху ~+125°C
-//		}
-//		if (PWRMNG.IntegrVNTC.Sum >= 3950) {
-//			PWRMNG.IntegrVNTC.Sum = -4000; // Ограничение снизу ~-40°C
-//		}
-//
-//		int32_t adc_sq = (PWRMNG.IntegrVNTC.Sum * PWRMNG.IntegrVNTC.Sum) >> 12; // Предотвращаем переполнение (ADC^2 / 4096)
-//		int32_t temp_accum = 784550; // Смещение c0 * 100
-//
-//		// Линейный член: -2.9385 * 100 -> -294
-//		temp_accum -= (PWRMNG.IntegrVNTC.Sum * 294);
-//
-//		// Квадратичный член: 0.00016 * 100 * 4096 -> +65
-//		temp_accum += (adc_sq * 65);
-//		PWRMNG.Vntc = temp_accum;
-
-		PWRMNG.Vntc = NTC_GetTemperature(PWRMNG.IntegrVNTC.Sum);
-
-		//----- Vbat -----------------------------------------
-		PWRMNG.Vbat = (PWRMNG.IntegrVBAT.Sum * 330u) / (4095u*16);					// 10-integrator, 16-oversmpling
-
+		//----- Vdda -----------------------------------------
 		uint32_t vrefint_cal = *VREFINT_CAL_ADDR;
 		PWRMNG.Vdda = (VREFINT_CAL_VREF * vrefint_cal)/vRefInt_raw;
 
+		//----- Vtemp ----------------------------------------
+		int32_t tempSensCal1Addr = *TEMPSENSOR_CAL1_ADDR;							// 1030
+		int32_t tempSensCal2Addr = *TEMPSENSOR_CAL2_ADDR;							// 1367
 
-//		uint32_t vdda_mv = (3000u * (uint32_t)(vrefint_cal)) / vrefint_raw;
-//		PWRMNG.Vdda = (int16_t)vdda_mv;
+		PWRMNG.IntegrTEMP.Sum = PWRMNG.IntegrTEMP.Sum / 1/16;							// На 10 не делим чтобы сохранить десятые 26,5
+		int32_t vTempCorrected = (PWRMNG.IntegrTEMP.Sum * PWRMNG.Vdda / 3000);		// 14000
+		PWRMNG.Temp = ((100*(vTempCorrected-tempSensCal1Addr*10))/(tempSensCal2Addr - tempSensCal1Addr))+300;
+
+		//----- Vntc -----------------------------------------
+		PWRMNG.IntegrVNTC.Sum = PWRMNG.IntegrVNTC.Sum/10/16;
+		PWRMNG.Vntc = NTC_GetTemperature(PWRMNG.IntegrVNTC.Sum);
+		//----- Vbat -----------------------------------------
+
+		PWRMNG.Vshunt = (PWRMNG.IntegrVSHUNT.Sum * 330u) / (4095u*16);			// 10-integrator, 16-oversmpling
+		PWRMNG.VopAmp = (PWRMNG.IntegrVOPAMP.Sum * 330u) / (4095u*16);			// 10-integrator, 16-oversmpling
+		PWRMNG.Vbat = (PWRMNG.IntegrVBAT.Sum * 330u) / (4095u*16*2);				// 10-integrator, 16-oversmpling
+//		PWRMNG.Vntc = (PWRMNG.IntegrVNTC.Sum * 330)/(4095*16);
 
 		PWRMNG.IntegrVREF.Index = 0;
 		PWRMNG.IntegrVREF.Sum = 0;
 		PWRMNG.IntegrTEMP.Sum = 0;
 		PWRMNG.IntegrVNTC.Sum = 0;
+		PWRMNG.IntegrVSHUNT.Sum = 0;
+		PWRMNG.IntegrVOPAMP.Sum = 0;
 		PWRMNG.IntegrVBAT.Sum = 0;
+		LED_On(LED0);
 	}
 	else
 		PWRMNG.IntegrVREF.Index++;
 
 
-	LED_Off(LED1);
+//	LED_Off(LED1);
 	__NOP();
 }
 

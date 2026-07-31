@@ -31,8 +31,9 @@ typedef enum
 	VREF = 0,
 	TEMP,
 	VNTC,
-	VBAT,
+	VSHUNHT,
 	VOPAMP,
+//	VBAT,
 	CODSIZE
 }AdcCod_e;
 
@@ -42,16 +43,25 @@ typedef struct
 	Integrator_t	IntegrVREF;
 	Integrator_t	IntegrTEMP;
 	Integrator_t	IntegrVNTC;
+	Integrator_t	IntegrVSHUNT;
 	Integrator_t	IntegrVOPAMP;
 	Integrator_t	IntegrVBAT;
 
 	s16 Vref;
+	s16 VrefOld;
 	s16 Temp;
+	s16 TempOld;
 	s16 Vntc;
+	s16 VntcOld;
+	s16 Vshunt;
+	s16 VshuntOld;
 	s16 VopAmp;
+	s16 VopAmpOld;
 	s16 Vbat;
+	s16 VbatOld;
 
 	s16 Vdda;
+	s16 VddaOld;
 	s16 Vmcu;
 }PWRMNG_t;
 

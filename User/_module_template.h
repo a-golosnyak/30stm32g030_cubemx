@@ -25,6 +25,17 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+typedef struct
+{
+	u8	sendData	:1;
+} Flag_t;
+
+typedef struct
+{
+	u32	Counter;
+	u8	mainStateMachine;
+	Flag_t flag;
+}MODULE_t;
 
 /* USER CODE END ET */
 

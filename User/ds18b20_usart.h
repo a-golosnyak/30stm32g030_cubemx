@@ -59,14 +59,20 @@ typedef enum
 #define DS18B20_INVALID_RAW     INT16_MIN  /* sentinel: no valid reading yet   */
 
 typedef struct {
-	u8	MainStateMachine;
-	u32	Counter;
-	Sensor_t sensors[DS18B20_MAX_SENSORS];
+	u8			MainStateMachine;
+	u32			Counter;
+	Sensor_t 	sensors[DS18B20_MAX_SENSORS];
 	uint8_t 	romNo[8];
-	int      lastDiscrepancy;
-	int      lastFamilyDiscrepancy;
-	uint8_t  lastDeviceFlag;
+	int      	lastDiscrepancy;
+	int      	lastFamilyDiscrepancy;
+	uint8_t  	lastDeviceFlag;
 } DS18B20_t;
+
+extern uint8_t sensorCount;
+extern int16_t testTemp1;
+extern int16_t testTemp1Old;
+extern int16_t testTemp2;
+extern int16_t testTemp2Old;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
