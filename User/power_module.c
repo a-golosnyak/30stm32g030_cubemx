@@ -97,7 +97,7 @@ void ADC_LowLevel_Init(void)
 	);
 
 	LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_5);
-	LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_5, 5);
+	LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_5, 6);
 	LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_5);
 
 	LL_ADC_REG_StartConversion(ADC1);
@@ -128,18 +128,18 @@ void PWRMNG_Processing(void)
 	PWRMNG.IntegrVNTC.Sum += KalmanFilter3(PWRMNG.AdcCod[VNTC]);
 	PWRMNG.IntegrVSHUNT.Sum += KalmanFilter4(PWRMNG.AdcCod[VSHUNHT]);
 	PWRMNG.IntegrVOPAMP.Sum += KalmanFilter5(PWRMNG.AdcCod[VOPAMP]);
-//	PWRMNG.IntegrVBAT.Sum += KalmanFilter4(PWRMNG.AdcCod[VBAT]);
+	PWRMNG.IntegrVBAT.Sum += KalmanFilter6(PWRMNG.AdcCod[VBAT]);
 
 	if(PWRMNG.IntegrVREF.Index == 9)
 	{
-		LED_Off(LED0);
+//		LED_Off(LED0);
 		//----- VRef -----------------------------------------
-		uint32_t vRefInt_raw = PWRMNG.IntegrVREF.Sum / 10u /16;						// 10-integrator, 16-oversmpling
-		PWRMNG.Vref = (vRefInt_raw * 3300u) / (4095u);
+		uint32_t vRefInt_raw = PWRMNG.IntegrVREF.Sum / 16;							// 10-integrator, 16-oversmpling
+		PWRMNG.Vref = (vRefInt_raw * 330u) / (4095u);
 
 		//----- Vdda -----------------------------------------
 		uint32_t vrefint_cal = *VREFINT_CAL_ADDR;
-		PWRMNG.Vdda = (VREFINT_CAL_VREF * vrefint_cal)/vRefInt_raw;
+		PWRMNG.Vdda = (VREFINT_CAL_VREF * vrefint_cal * 10)/vRefInt_raw;
 
 		//----- Vtemp ----------------------------------------
 		int32_t tempSensCal1Addr = *TEMPSENSOR_CAL1_ADDR;							// 1030
@@ -154,10 +154,30 @@ void PWRMNG_Processing(void)
 		PWRMNG.Vntc = NTC_GetTemperature(PWRMNG.IntegrVNTC.Sum);
 		//----- Vbat -----------------------------------------
 
-		PWRMNG.Vshunt = (PWRMNG.IntegrVSHUNT.Sum * 330u) / (4095u*16);			// 10-integrator, 16-oversmpling
-		PWRMNG.VopAmp = (PWRMNG.IntegrVOPAMP.Sum * 330u) / (4095u*16);			// 10-integrator, 16-oversmpling
-		PWRMNG.Vbat = (PWRMNG.IntegrVBAT.Sum * 330u) / (4095u*16*2);				// 10-integrator, 16-oversmpling
+//		PWRMNG.VshuntCod = PWRMNG.IntegrVSHUNT.Sum / 160;
+		PWRMNG.Vbat = PWRMNG.AdcCod[VBAT] / 16;
+		PWRMNG.Vshunt = (PWRMNG.IntegrVSHUNT.Sum * PWRMNG.Vdda) / (4095u*160);		// 10-integrator, 16-oversmpling
+		PWRMNG.VopAmp = (PWRMNG.IntegrVOPAMP.Sum * PWRMNG.Vdda) / (4095u*160);		// 10-integrator, 16-oversmpling
+//		PWRMNG.Vbat = (PWRMNG.IntegrVSHUNT.Sum * PWRMNG.Vdda) / (4095u*160);		// 10-integrator, 16-oversmpling
+//		PWRMNG.Vbat = (PWRMNG.IntegrVBAT.Sum * 330u) / (4095u*16*2);				// 10-integrator, 16-oversmpling
 //		PWRMNG.Vntc = (PWRMNG.IntegrVNTC.Sum * 330)/(4095*16);
+
+		//----------------------------------------------------
+
+//		if(PWRMNG.IntegrVNTC.Sum < 0)
+//			PWRMNG.IntegrVNTC.Sum = 0;
+//		else if (PWRMNG.IntegrVNTC.Sum > 588)
+//			PWRMNG.IntegrVNTC.Sum = 588;
+		PWRMNG.Vbat = PWRMNG.Vbat - 7;
+
+		if(PWRMNG.Vbat < 0)
+			PWRMNG.Vbat = 0;
+//		else if (PWRMNG.VshuntCod > 588)
+//			PWRMNG.VshuntCod = 588;
+
+//		LL_TIM_SetAutoReload(TIM1, PWRMNG.VshuntCod);
+		LL_TIM_OC_SetCompareCH1(TIM1, PWRMNG.Vbat);
+		//----------------------------------------------------
 
 		PWRMNG.IntegrVREF.Index = 0;
 		PWRMNG.IntegrVREF.Sum = 0;
@@ -166,7 +186,7 @@ void PWRMNG_Processing(void)
 		PWRMNG.IntegrVSHUNT.Sum = 0;
 		PWRMNG.IntegrVOPAMP.Sum = 0;
 		PWRMNG.IntegrVBAT.Sum = 0;
-		LED_On(LED0);
+//		LED_On(LED0);
 	}
 	else
 		PWRMNG.IntegrVREF.Index++;

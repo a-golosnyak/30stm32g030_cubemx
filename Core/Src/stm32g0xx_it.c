@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "power_module.h"
 #include "led_module.h"
+#include "button_module.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -133,6 +134,8 @@ void SysTick_Handler(void)
 
   /* USER CODE BEGIN SysTick_IRQn 1 */
 //	LED_On(LED1); delayUs(10); LED_Off(LED1);
+
+	BUTTON_Processing();
   /* USER CODE END SysTick_IRQn 1 */
 }
 

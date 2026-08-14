@@ -37,6 +37,7 @@ extern "C" {
 #include "stm32g0xx_ll_cortex.h"
 #include "stm32g0xx_ll_utils.h"
 #include "stm32g0xx_ll_pwr.h"
+#include "stm32g0xx_ll_tim.h"
 #include "stm32g0xx_ll_usart.h"
 #include "stm32g0xx_ll_gpio.h"
 
@@ -89,6 +90,7 @@ s32	KalmanFilter2(s32 val);
 s32	KalmanFilter3(s32 val);
 s32	KalmanFilter4(s32 val);
 s32	KalmanFilter5(s32 val);
+s32	KalmanFilter6(s32 val);
 
 /* USER CODE END EFP */
 

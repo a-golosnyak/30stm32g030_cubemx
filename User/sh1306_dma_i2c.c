@@ -97,8 +97,8 @@ void OLED_Init(void)
 	LCD_PutText(" Temp Module v1.0 Debug ", 0, 0, Tahoma8, 1, 1);
 	LCD_DrawLine(0, 10, 127, 10, 1);
 
-	sprintf(RenderBuffer, "SCLK=%dMHz  ", (int)RCC_Clocks.SYSCLK_Frequency/1000000);
-	LCD_PutText(RenderBuffer, 64, 11, Tahoma8, 1, 1);
+//	sprintf(RenderBuffer, "SCLK=%dMHz  ", (int)RCC_Clocks.SYSCLK_Frequency/1000000);
+//	LCD_PutText(RenderBuffer, 64, 11, Tahoma8, 1, 1);
 }
 
 /*********************************************************************************
@@ -140,6 +140,13 @@ void OLED_Processing(void)
 			PWRMNG.VntcOld = PWRMNG.Vntc;
 
 		}
+
+		if(PWRMNG.Vdda != PWRMNG.VddaOld) {
+			PWRMNG.VddaOld = PWRMNG.Vdda;
+			sprintf(RenderBuffer, "Vdda=%d.%03d  ", PWRMNG.Vdda/1000, PWRMNG.Vdda%1000);
+			LCD_PutText(RenderBuffer, 64, y, Tahoma8, 1, 1);
+		}
+
 		//		sprintf(RenderBuffer, "SYSCLK=%d  ", (int)RCC_Clocks.SYSCLK_Frequency);
 		//		LCD_PutText(RenderBuffer, 0, y+=11, Tahoma8, 1, 1);
 
@@ -172,18 +179,12 @@ void OLED_Processing(void)
 
 //------------------------------------------------------------------------------------------------------------------------
 
-		y+=11;
-		if(PWRMNG.Vref != PWRMNG.VrefOld) {
-			PWRMNG.VrefOld = PWRMNG.Vref;
-			sprintf(RenderBuffer, "Vref=%d.%03d  ", PWRMNG.Vref/1000, PWRMNG.Vref%1000);
-			LCD_PutText(RenderBuffer, 0, y, Tahoma8, 1, 1);
-		}
-
-		if(PWRMNG.Vdda != PWRMNG.VddaOld) {
-			PWRMNG.VddaOld = PWRMNG.Vdda;
-			sprintf(RenderBuffer, "Vdda=%d.%03d  ", PWRMNG.Vdda/1000, PWRMNG.Vdda%1000);
-			LCD_PutText(RenderBuffer, 64, y, Tahoma8, 1, 1);
-		}
+//		y+=11;
+//		if(PWRMNG.Vref != PWRMNG.VrefOld) {
+//			PWRMNG.VrefOld = PWRMNG.Vref;
+//			sprintf(RenderBuffer, "Vref=%d.%03d  ", PWRMNG.Vref/1000, PWRMNG.Vref%1000);
+//			LCD_PutText(RenderBuffer, 0, y, Tahoma8, 1, 1);
+//		}
 
 		y+=11;
 		if(PWRMNG.Vshunt != PWRMNG.VshuntOld) {
@@ -203,10 +204,13 @@ void OLED_Processing(void)
 			LCD_PutText(RenderBuffer, 0, y, Tahoma8, 1, 1);
 		}
 
-		s16 I = PWRMNG.VopAmp*100/143;
+		s16 I = PWRMNG.VopAmp*171/240;
 		sprintf(RenderBuffer, "I=%d.%03dA  ", I/1000, I%1000);
 		LCD_PutText(RenderBuffer, 64, y, Tahoma8, 1, 1);
 
+		y+=11;
+		sprintf(RenderBuffer, "Vadc= %d    ", PWRMNG.Vbat);
+		LCD_PutText(RenderBuffer, 0, y, Tahoma8, 1, 1);
 
 		OLED.flag.sendData = 1;
 //		LED_Off(LED1);
